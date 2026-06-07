@@ -2,15 +2,33 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../components/Button';
 import { LogoIcon } from '../components/LogoIcon';
+import { api, saveToken } from '../services/api';
 
 export function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setError('');
+    setLoading(true);
+
+    try {
+      const data = await api.login(email, password);
+      if (data.access_token) {
+        saveToken(data.access_token, data.startup_name);
+        navigate('/dashboard');
+      } else {
+        setError(data.detail || 'Invalid email or password.');
+      }
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -30,6 +48,12 @@ export function Login() {
           <p className="text-center text-muted-foreground mb-8">
             Log in to your account to continue
           </p>
+
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -68,8 +92,13 @@ export function Login() {
               </a>
             </div>
 
-            <Button type="submit" variant="primary" className="w-full">
-              Log in
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? 'Logging in...' : 'Log in'}
             </Button>
           </form>
 

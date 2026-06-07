@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../components/Button';
 import { LogoIcon } from '../components/LogoIcon';
+import { api, saveToken } from '../services/api';
 
 export function Signup() {
   const navigate = useNavigate();
@@ -9,14 +10,32 @@ export function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
     if (password !== confirmPassword) {
-      alert('Passwords do not match');
+      setError('Passwords do not match');
       return;
     }
-    navigate('/dashboard');
+
+    setLoading(true);
+    try {
+      const data = await api.signup(startupName, email, password);
+      if (data.access_token) {
+        saveToken(data.access_token, data.startup_name);
+        navigate('/dashboard');
+      } else {
+        setError(data.detail || 'Signup failed. Please try again.');
+      }
+    } catch (err) {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,6 +55,12 @@ export function Signup() {
           <p className="text-center text-muted-foreground mb-8">
             Create your account to start growing
           </p>
+
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -98,8 +123,13 @@ export function Signup() {
               />
             </div>
 
-            <Button type="submit" variant="primary" className="w-full">
-              Create account
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full"
+              disabled={loading}
+            >
+              {loading ? 'Creating account...' : 'Create account'}
             </Button>
           </form>
 

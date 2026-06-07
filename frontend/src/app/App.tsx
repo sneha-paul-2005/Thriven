@@ -7,16 +7,39 @@ import { Dashboard } from './pages/Dashboard';
 import { FunnelAnalysis } from './pages/FunnelAnalysis';
 import { AIAssistant } from './pages/AIAssistant';
 import { Settings } from './pages/Settings';
+import { isLoggedIn } from './services/api';
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  if (!isLoggedIn()) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
+
+function GuestRoute({ children }: { children: React.ReactNode }) {
+  if (isLoggedIn()) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Landing />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
 
-        <Route element={<Layout />}>
+        <Route path="/login" element={
+          <GuestRoute><Login /></GuestRoute>
+        } />
+
+        <Route path="/signup" element={
+          <GuestRoute><Signup /></GuestRoute>
+        } />
+
+        <Route element={
+          <ProtectedRoute><Layout /></ProtectedRoute>
+        }>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/funnel" element={<FunnelAnalysis />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
