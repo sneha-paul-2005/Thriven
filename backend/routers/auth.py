@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from database import get_db
@@ -16,29 +16,25 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
+class GoogleAuthRequest(BaseModel):
+    token: str
+    email: str
+    name: str
+
 @router.post("/signup")
 def signup(req: SignupRequest, db: Session = Depends(get_db)):
-    # Check if email already exists
     existing = db.query(models.Startup).filter(
         models.Startup.email == req.email
     ).first()
     if existing:
-        raise HTTPException(
-            status_code=400,
-            detail="Email already registered"
-        )
+        raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Check if startup name already exists
     existing_name = db.query(models.Startup).filter(
         models.Startup.startup_name == req.startup_name
     ).first()
     if existing_name:
-        raise HTTPException(
-            status_code=400,
-            detail="Startup name already taken"
-        )
+        raise HTTPException(status_code=400, detail="Startup name already taken")
 
-    # Create new startup
     hashed = auth.hash_password(req.password)
     new_startup = models.Startup(
         startup_name=req.startup_name,
@@ -62,10 +58,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         models.Startup.email == req.email
     ).first()
     if not user or not auth.verify_password(req.password, user.hashed_password):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid email or password"
-        )
+        raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = auth.create_access_token({"sub": user.email})
     return {
@@ -81,3 +74,32 @@ def get_me(current_user = Depends(auth.get_current_user)):
         "startup_name": current_user.startup_name,
         "email": current_user.email
     }
+
+@router.post("/google")
+def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
+    try:
+        email = req.email
+        name = req.name or email.split("@")[0]
+
+        user = db.query(models.Startup).filter(
+            models.Startup.email == email
+        ).first()
+
+        if not user:
+            user = models.Startup(
+                startup_name=name,
+                email=email,
+                hashed_password=""
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+        token = auth.create_access_token({"sub": user.email})
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "startup_name": user.startup_name
+        }
+    except Exception as e:
+        raise HTTPException(status_code=401, detail="Invalid Google login")
