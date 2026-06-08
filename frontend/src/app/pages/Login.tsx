@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '../components/Button';
 import { LogoIcon } from '../components/LogoIcon';
 import { api, saveToken } from '../services/api';
@@ -10,12 +11,12 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
       const data = await api.login(email, password);
       if (data.access_token) {
@@ -40,7 +41,7 @@ export function Login() {
               <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
                 <LogoIcon className="w-6 h-6 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-semibold">Thriven</span>
+              <span className="text-2xl font-semibold">THRIVEN</span>
             </div>
           </div>
 
@@ -57,9 +58,7 @@ export function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block mb-2 text-foreground">
-                Email
-              </label>
+              <label htmlFor="email" className="block mb-2 text-foreground">Email</label>
               <input
                 id="email"
                 type="email"
@@ -72,18 +71,25 @@ export function Login() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block mb-2 text-foreground">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="••••••••"
-                required
-              />
+              <label htmlFor="password" className="block mb-2 text-foreground">Password</label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 pr-12 rounded-lg bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
 
             <div className="flex justify-end">
@@ -105,9 +111,7 @@ export function Login() {
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
               Don't have an account?{' '}
-              <Link to="/signup" className="text-primary hover:underline">
-                Sign up
-              </Link>
+              <Link to="/signup" className="text-primary hover:underline">Sign up</Link>
             </p>
           </div>
         </div>
