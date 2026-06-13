@@ -5,11 +5,7 @@ export const api = {
     const res = await fetch(`${BASE_URL}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        startup_name: startupName,
-        email,
-        password
-      })
+      body: JSON.stringify({ startup_name: startupName, email, password })
     })
     return res.json()
   },
@@ -25,6 +21,31 @@ export const api = {
 
   getMe: async (token) => {
     const res = await fetch(`${BASE_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return res.json()
+  },
+
+  uploadCSV: async (token, file) => {
+    const formData = new FormData()
+    formData.append("file", file)
+    const res = await fetch(`${BASE_URL}/metrics/upload`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    })
+    return res.json()
+  },
+
+  getDashboard: async (token) => {
+    const res = await fetch(`${BASE_URL}/metrics/dashboard`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return res.json()
+  },
+
+  getFunnel: async (token) => {
+    const res = await fetch(`${BASE_URL}/metrics/funnel`, {
       headers: { Authorization: `Bearer ${token}` }
     })
     return res.json()

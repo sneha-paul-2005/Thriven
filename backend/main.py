@@ -1,8 +1,9 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from database import engine
 import models
-from routers import auth
+from routers import auth, metrics
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -16,7 +17,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.exception_handler(401)
+async def unauthorized_handler(request: Request, exc):
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Could not validate credentials"},
+        headers={"Access-Control-Allow-Origin": "http://localhost:5173"},
+    )
+
 app.include_router(auth.router)
+app.include_router(metrics.router)
 
 @app.get("/")
 def root():
