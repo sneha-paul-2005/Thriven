@@ -12,7 +12,7 @@ export function Layout() {
 
   const handleLogout = () => {
     removeToken();
-    navigate('/');
+    navigate('/login');
   };
 
   return (

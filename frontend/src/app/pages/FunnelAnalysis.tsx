@@ -1,36 +1,63 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FunnelStage } from '../components/FunnelStage';
 import { Lightbulb, Monitor, MapPin, Share2 } from 'lucide-react';
+import { api, getToken } from '../services/api';
 
 type SegmentTab = 'device' | 'location' | 'traffic';
 
+const FALLBACK_FUNNEL = [
+  { label: 'Visit', count: 45000, percentage: 100, color: '#7F77DD' },
+  { label: 'Signup', count: 9000, percentage: 20, color: '#1D9E75' },
+  { label: 'Add to Cart', count: 2700, percentage: 6, color: '#A29FE8' },
+  { label: 'Purchase', count: 1350, percentage: 3, color: '#D85A30' },
+];
+
+const STAGE_COLORS = ['#7F77DD', '#1D9E75', '#A29FE8', '#D85A30'];
+
+const recommendations = [
+  {
+    title: 'Optimize signup form',
+    description: 'Your signup conversion is at 20%. Consider reducing form fields from 6 to 3 to improve completion rate.',
+    impact: 'High',
+  },
+  {
+    title: 'Add cart abandonment emails',
+    description: 'Only 30% of users who add to cart complete purchase. Automated reminder emails could recover 15-20% of lost sales.',
+    impact: 'High',
+  },
+  {
+    title: 'Improve mobile checkout',
+    description: 'Mobile users have 40% lower conversion. Simplify the mobile checkout flow and add payment options like Apple Pay.',
+    impact: 'Medium',
+  },
+];
+
 export function FunnelAnalysis() {
   const [activeTab, setActiveTab] = useState<SegmentTab>('device');
+  const [funnelData, setFunnelData] = useState(FALLBACK_FUNNEL);
+  const [hasData, setHasData] = useState(false);
 
-  const funnelData = [
-    { label: 'Visit', count: 45000, percentage: 100, color: '#7F77DD' },
-    { label: 'Signup', count: 9000, percentage: 20, color: '#1D9E75' },
-    { label: 'Add to Cart', count: 2700, percentage: 6, color: '#A29FE8' },
-    { label: 'Purchase', count: 1350, percentage: 3, color: '#D85A30' },
-  ];
-
-  const recommendations = [
-    {
-      title: 'Optimize signup form',
-      description: 'Your signup conversion is at 20%. Consider reducing form fields from 6 to 3 to improve completion rate.',
-      impact: 'High',
-    },
-    {
-      title: 'Add cart abandonment emails',
-      description: 'Only 30% of users who add to cart complete purchase. Automated reminder emails could recover 15-20% of lost sales.',
-      impact: 'High',
-    },
-    {
-      title: 'Improve mobile checkout',
-      description: 'Mobile users have 40% lower conversion. Simplify the mobile checkout flow and add payment options like Apple Pay.',
-      impact: 'Medium',
-    },
-  ];
+  useEffect(() => {
+    const fetchFunnel = async () => {
+      const token = getToken();
+      if (!token) return;
+      try {
+        const data = await api.getFunnel(token);
+        if (data.has_data && data.stages?.length) {
+          setHasData(true);
+          setFunnelData(
+            data.stages.map((s: any, i: number) => ({
+              label: s.stage,
+              count: s.count,
+              percentage: s.percentage,
+              color: STAGE_COLORS[i] ?? '#7F77DD',
+            }))
+          );
+        }
+      } catch (_) {}
+    };
+    fetchFunnel();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -38,6 +65,12 @@ export function FunnelAnalysis() {
         <h1 className="text-3xl font-semibold text-foreground">Funnel Analysis</h1>
         <p className="text-muted-foreground mt-1">Track user journey and identify drop-off points</p>
       </div>
+
+      {!hasData && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 text-sm text-amber-700">
+          No data uploaded yet — showing sample data. Upload a CSV from the Dashboard to see real funnel metrics.
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Funnel Visualization */}

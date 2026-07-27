@@ -50,7 +50,7 @@ def get_dashboard_metrics(
         }
 
     df = pd.DataFrame(startup_data[current_user.email])
-    df['date'] = pd.to_datetime(df['date'])
+    df['date'] = pd.to_datetime(df['date'], dayfirst=True)
 
     # DAU — unique users on most recent date
     latest_date = df['date'].max()
