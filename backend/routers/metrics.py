@@ -45,6 +45,7 @@ def get_dashboard_metrics(
             "retention_rate": 0,
             "conversion_rate": 0,
             "growth_trend": [],
+            "event_breakdown": [],
             "north_star": 0,
             "has_data": False
         }
@@ -83,15 +84,42 @@ def get_dashboard_metrics(
     seven_days_ago = latest_date - pd.Timedelta(days=7)
     north_star = df[df['date'] >= seven_days_ago]['user_id'].nunique()
 
+    # Event breakdown — daily counts per event type
+    event_breakdown = []
+    for date, group in df.groupby('date'):
+        event_breakdown.append({
+            "date": str(date.date())[5:],  # MM-DD
+            "visits": int((group['event'] == 'visit').sum()),
+            "signups": int((group['event'] == 'signup').sum()),
+            "purchases": int((group['event'] == 'purchase').sum()),
+        })
+
     return {
         "dau": int(dau),
         "mau": int(mau),
         "retention_rate": float(retention_rate),
         "conversion_rate": float(conversion_rate),
         "growth_trend": growth_trend,
+        "event_breakdown": event_breakdown,
         "north_star": int(north_star),
         "has_data": True
     }
+
+def _segment_conversion(df: pd.DataFrame, column: str):
+    """Conversion rate (purchasers / visitors) grouped by a segmentation column."""
+    if column not in df.columns:
+        return []
+
+    results = []
+    for value, group in df.groupby(column):
+        visitors = group[group['event'] == 'visit']['user_id'].nunique()
+        purchasers = group[group['event'] == 'purchase']['user_id'].nunique()
+        rate = round((purchasers / visitors * 100), 1) if visitors > 0 else 0.0
+        results.append({"label": str(value), "conversion_rate": rate})
+
+    # Highest conversion first
+    results.sort(key=lambda r: r['conversion_rate'], reverse=True)
+    return results
 
 @router.get("/funnel")
 def get_funnel_metrics(
@@ -99,7 +127,7 @@ def get_funnel_metrics(
     db: Session = Depends(get_db)
 ):
     if current_user.email not in startup_data:
-        return {"has_data": False, "stages": []}
+        return {"has_data": False, "stages": [], "segments": {}}
 
     df = pd.DataFrame(startup_data[current_user.email])
 
@@ -124,4 +152,10 @@ def get_funnel_metrics(
         })
         prev_count = count
 
-    return {"has_data": True, "stages": funnel}
+    segments = {
+        "device": _segment_conversion(df, 'device'),
+        "location": _segment_conversion(df, 'location'),
+        "traffic_source": _segment_conversion(df, 'traffic_source'),
+    }
+
+    return {"has_data": True, "stages": funnel, "segments": segments}

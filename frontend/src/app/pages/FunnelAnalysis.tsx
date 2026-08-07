@@ -3,7 +3,7 @@ import { FunnelStage } from '../components/FunnelStage';
 import { Lightbulb, Monitor, MapPin, Share2 } from 'lucide-react';
 import { api, getToken } from '../services/api';
 
-type SegmentTab = 'device' | 'location' | 'traffic';
+type SegmentTab = 'device' | 'location' | 'traffic_source';
 
 const FALLBACK_FUNNEL = [
   { label: 'Visit', count: 45000, percentage: 100, color: '#7F77DD' },
@@ -12,7 +12,31 @@ const FALLBACK_FUNNEL = [
   { label: 'Purchase', count: 1350, percentage: 3, color: '#D85A30' },
 ];
 
+const FALLBACK_SEGMENTS: Record<SegmentTab, { label: string; conversion_rate: number }[]> = {
+  device: [
+    { label: 'Desktop', conversion_rate: 4.2 },
+    { label: 'Mobile', conversion_rate: 2.5 },
+    { label: 'Tablet', conversion_rate: 3.1 },
+  ],
+  location: [
+    { label: 'United States', conversion_rate: 4.1 },
+    { label: 'United Kingdom', conversion_rate: 3.8 },
+    { label: 'Canada', conversion_rate: 3.5 },
+  ],
+  traffic_source: [
+    { label: 'Organic Search', conversion_rate: 5.2 },
+    { label: 'Paid Ads', conversion_rate: 3.4 },
+    { label: 'Social Media', conversion_rate: 2.1 },
+  ],
+};
+
 const STAGE_COLORS = ['#7F77DD', '#1D9E75', '#A29FE8', '#D85A30'];
+
+const TAB_CONFIG: { key: SegmentTab; label: string; icon: typeof Monitor }[] = [
+  { key: 'device', label: 'Device', icon: Monitor },
+  { key: 'location', label: 'Location', icon: MapPin },
+  { key: 'traffic_source', label: 'Traffic Source', icon: Share2 },
+];
 
 const recommendations = [
   {
@@ -35,6 +59,7 @@ const recommendations = [
 export function FunnelAnalysis() {
   const [activeTab, setActiveTab] = useState<SegmentTab>('device');
   const [funnelData, setFunnelData] = useState(FALLBACK_FUNNEL);
+  const [segments, setSegments] = useState(FALLBACK_SEGMENTS);
   const [hasData, setHasData] = useState(false);
 
   useEffect(() => {
@@ -53,6 +78,13 @@ export function FunnelAnalysis() {
               color: STAGE_COLORS[i] ?? '#7F77DD',
             }))
           );
+        }
+        if (data.segments) {
+          setSegments({
+            device: data.segments.device?.length ? data.segments.device : FALLBACK_SEGMENTS.device,
+            location: data.segments.location?.length ? data.segments.location : FALLBACK_SEGMENTS.location,
+            traffic_source: data.segments.traffic_source?.length ? data.segments.traffic_source : FALLBACK_SEGMENTS.traffic_source,
+          });
         }
       } catch (_) {}
     };
@@ -91,90 +123,31 @@ export function FunnelAnalysis() {
           <div className="border-t border-border pt-6">
             <h4 className="font-semibold mb-4">Segment by</h4>
             <div className="flex gap-2 mb-6">
-              <button
-                onClick={() => setActiveTab('device')}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === 'device'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
-              >
-                <Monitor className="w-4 h-4" />
-                Device
-              </button>
-              <button
-                onClick={() => setActiveTab('location')}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === 'location'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
-              >
-                <MapPin className="w-4 h-4" />
-                Location
-              </button>
-              <button
-                onClick={() => setActiveTab('traffic')}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === 'traffic'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                }`}
-              >
-                <Share2 className="w-4 h-4" />
-                Traffic Source
-              </button>
+              {TAB_CONFIG.map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    activeTab === key
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </button>
+              ))}
             </div>
 
             <div className="bg-secondary/50 rounded-lg p-4">
-              {activeTab === 'device' && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-foreground">Desktop</span>
-                    <span className="font-medium">4.2% conversion</span>
+              <div className="space-y-2">
+                {segments[activeTab].map((seg) => (
+                  <div key={seg.label} className="flex justify-between items-center">
+                    <span className="text-foreground">{seg.label}</span>
+                    <span className="font-medium">{seg.conversion_rate}% conversion</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-foreground">Mobile</span>
-                    <span className="font-medium">2.5% conversion</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-foreground">Tablet</span>
-                    <span className="font-medium">3.1% conversion</span>
-                  </div>
-                </div>
-              )}
-              {activeTab === 'location' && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-foreground">United States</span>
-                    <span className="font-medium">4.1% conversion</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-foreground">United Kingdom</span>
-                    <span className="font-medium">3.8% conversion</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-foreground">Canada</span>
-                    <span className="font-medium">3.5% conversion</span>
-                  </div>
-                </div>
-              )}
-              {activeTab === 'traffic' && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-foreground">Organic Search</span>
-                    <span className="font-medium">5.2% conversion</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-foreground">Paid Ads</span>
-                    <span className="font-medium">3.4% conversion</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-foreground">Social Media</span>
-                    <span className="font-medium">2.1% conversion</span>
-                  </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
           </div>
         </div>

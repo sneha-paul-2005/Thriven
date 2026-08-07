@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Users, UserPlus, ShoppingCart, TrendingUp, AlertTriangle, Calendar, Upload, X, CheckCircle } from 'lucide-react';
 import { MetricCard } from '../components/MetricCard';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { api, getToken } from '../services/api';
 
 const FALLBACK_GROWTH = [
@@ -12,6 +12,14 @@ const FALLBACK_GROWTH = [
   { date: 'Jan 29', value: 2800 },
   { date: 'Feb 5', value: 3200 },
   { date: 'Feb 12', value: 3600 },
+];
+
+const FALLBACK_EVENTS = [
+  { date: 'Jan 1', visits: 1200, signups: 300, purchases: 90 },
+  { date: 'Jan 8', visits: 1800, signups: 450, purchases: 120 },
+  { date: 'Jan 15', visits: 2400, signups: 600, purchases: 180 },
+  { date: 'Jan 22', visits: 2200, signups: 500, purchases: 150 },
+  { date: 'Jan 29', visits: 2800, signups: 700, purchases: 200 },
 ];
 
 export function Dashboard() {
@@ -74,6 +82,19 @@ export function Dashboard() {
   const conversion = hasData ? `${metrics.conversion_rate}%` : '3.8%';
   const northStar = hasData ? metrics.north_star : '15,840';
 
+  // Growth trend data — shorten date labels for readability
+  const growthData = hasData && metrics.growth_trend?.length
+    ? metrics.growth_trend.map(d => ({
+        date: d.date.slice(5), // show MM-DD instead of full date
+        value: d.users
+      }))
+    : FALLBACK_GROWTH;
+
+  // Event breakdown data from growth_trend
+  const eventData = hasData && metrics.event_breakdown?.length
+    ? metrics.event_breakdown
+    : FALLBACK_EVENTS;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -105,24 +126,44 @@ export function Dashboard() {
         <MetricCard icon={ShoppingCart} label="Conversion Rate" value={String(conversion)} change={5.1} trend="up" />
       </div>
 
-      {/* Growth Trend Chart */}
-      <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
-        <h3 className="text-xl font-semibold mb-6">Growth Trend</h3>
-        <ResponsiveContainer width="100%" height={300}>
-          <AreaChart data={hasData && metrics.growth_trend?.length ? metrics.growth_trend.map(d => ({ date: d.date, value: d.users })) : FALLBACK_GROWTH}>
-            <defs>
-              <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#7F77DD" stopOpacity={0.3}/>
-                <stop offset="95%" stopColor="#7F77DD" stopOpacity={0}/>
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-            <XAxis dataKey="date" stroke="#717182" />
-            <YAxis stroke="#717182" />
-            <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e5e5', borderRadius: '8px' }} />
-            <Area type="monotone" dataKey="value" stroke="#7F77DD" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
-          </AreaChart>
-        </ResponsiveContainer>
+      {/* Charts Row */}
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Growth Trend Chart */}
+        <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
+          <h3 className="text-xl font-semibold mb-6">Growth Trend</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <AreaChart data={growthData}>
+              <defs>
+                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#7F77DD" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#7F77DD" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
+              <XAxis dataKey="date" stroke="#717182" tick={{ fontSize: 11 }} />
+              <YAxis stroke="#717182" tick={{ fontSize: 11 }} />
+              <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e5e5', borderRadius: '8px' }} />
+              <Area type="monotone" dataKey="value" name="Active Users" stroke="#7F77DD" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Event Breakdown Chart */}
+        <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
+          <h3 className="text-xl font-semibold mb-6">Event Breakdown</h3>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={eventData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
+              <XAxis dataKey="date" stroke="#717182" tick={{ fontSize: 11 }} />
+              <YAxis stroke="#717182" tick={{ fontSize: 11 }} />
+              <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e5e5', borderRadius: '8px' }} />
+              <Legend />
+              <Bar dataKey="visits" name="Visits" fill="#7F77DD" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="signups" name="Signups" fill="#1D9E75" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="purchases" name="Purchases" fill="#D85A30" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
