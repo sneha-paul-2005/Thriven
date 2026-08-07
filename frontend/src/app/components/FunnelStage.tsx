@@ -2,12 +2,19 @@ interface FunnelStageProps {
   label: string;
   count: number;
   percentage: number;
+  dropoff?: number;
   color: string;
   isLast?: boolean;
 }
 
-export function FunnelStage({ label, count, percentage, color, isLast = false }: FunnelStageProps) {
-  const dropOff = isLast ? 0 : 100 - percentage;
+export function FunnelStage({ label, count, percentage, dropoff = 0, color, isLast = false }: FunnelStageProps) {
+  const severity = dropoff >= 50 ? 'high' : dropoff >= 20 ? 'medium' : 'low';
+
+  const badgeStyles = {
+    high: 'bg-destructive/10 border-destructive text-destructive',
+    medium: 'bg-amber-500/10 border-amber-500 text-amber-600',
+    low: 'bg-secondary border-border text-muted-foreground',
+  };
 
   return (
     <div className="relative">
@@ -28,10 +35,12 @@ export function FunnelStage({ label, count, percentage, color, isLast = false }:
           <p className="text-2xl font-semibold text-foreground">{count.toLocaleString()}</p>
         </div>
       </div>
-      {!isLast && dropOff > 0 && (
-        <div className="ml-4 mb-4 p-2 bg-destructive/10 border-l-2 border-destructive rounded">
-          <p className="text-sm text-destructive">
-            Drop off: {dropOff.toFixed(1)}%
+      {!isLast && dropoff > 0 && (
+        <div className={`ml-4 mb-4 p-2 border-l-2 rounded ${badgeStyles[severity]}`}>
+          <p className="text-sm">
+            {severity === 'high' && '⚠ '}
+            Drop off: {dropoff.toFixed(1)}%
+            {severity === 'high' && ' — needs attention'}
           </p>
         </div>
       )}

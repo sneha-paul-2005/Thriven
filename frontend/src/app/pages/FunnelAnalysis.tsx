@@ -1,32 +1,39 @@
 import { useState, useEffect } from 'react';
 import { FunnelStage } from '../components/FunnelStage';
-import { Lightbulb, Monitor, MapPin, Share2 } from 'lucide-react';
+import { Lightbulb, Monitor, MapPin, Share2, TrendingDown } from 'lucide-react';
 import { api, getToken } from '../services/api';
 
 type SegmentTab = 'device' | 'location' | 'traffic_source';
 
+type SegmentRow = {
+  label: string;
+  conversion_rate: number;
+  worst_stage?: string;
+  worst_dropoff?: number;
+};
+
 const FALLBACK_FUNNEL = [
-  { label: 'Visit', count: 45000, percentage: 100, color: '#7F77DD' },
-  { label: 'Signup', count: 9000, percentage: 20, color: '#1D9E75' },
-  { label: 'Add to Cart', count: 2700, percentage: 6, color: '#A29FE8' },
-  { label: 'Purchase', count: 1350, percentage: 3, color: '#D85A30' },
+  { label: 'Visit', count: 45000, percentage: 100, dropoff: 0, color: '#7F77DD' },
+  { label: 'Signup', count: 9000, percentage: 20, dropoff: 80, color: '#1D9E75' },
+  { label: 'Add to Cart', count: 2700, percentage: 6, dropoff: 70, color: '#A29FE8' },
+  { label: 'Purchase', count: 1350, percentage: 3, dropoff: 50, color: '#D85A30' },
 ];
 
-const FALLBACK_SEGMENTS: Record<SegmentTab, { label: string; conversion_rate: number }[]> = {
+const FALLBACK_SEGMENTS: Record<SegmentTab, SegmentRow[]> = {
   device: [
-    { label: 'Desktop', conversion_rate: 4.2 },
-    { label: 'Mobile', conversion_rate: 2.5 },
-    { label: 'Tablet', conversion_rate: 3.1 },
+    { label: 'Desktop', conversion_rate: 4.2, worst_stage: 'Add to Cart', worst_dropoff: 55 },
+    { label: 'Mobile', conversion_rate: 2.5, worst_stage: 'Signup', worst_dropoff: 62 },
+    { label: 'Tablet', conversion_rate: 3.1, worst_stage: 'Add to Cart', worst_dropoff: 48 },
   ],
   location: [
-    { label: 'United States', conversion_rate: 4.1 },
-    { label: 'United Kingdom', conversion_rate: 3.8 },
-    { label: 'Canada', conversion_rate: 3.5 },
+    { label: 'United States', conversion_rate: 4.1, worst_stage: 'Add to Cart', worst_dropoff: 50 },
+    { label: 'United Kingdom', conversion_rate: 3.8, worst_stage: 'Signup', worst_dropoff: 45 },
+    { label: 'Canada', conversion_rate: 3.5, worst_stage: 'Add to Cart', worst_dropoff: 53 },
   ],
   traffic_source: [
-    { label: 'Organic Search', conversion_rate: 5.2 },
-    { label: 'Paid Ads', conversion_rate: 3.4 },
-    { label: 'Social Media', conversion_rate: 2.1 },
+    { label: 'Organic Search', conversion_rate: 5.2, worst_stage: 'Add to Cart', worst_dropoff: 40 },
+    { label: 'Paid Ads', conversion_rate: 3.4, worst_stage: 'Signup', worst_dropoff: 58 },
+    { label: 'Social Media', conversion_rate: 2.1, worst_stage: 'Add to Cart', worst_dropoff: 66 },
   ],
 };
 
@@ -56,6 +63,16 @@ const recommendations = [
   },
 ];
 
+function dropoffSeverity(rate: number) {
+  return rate >= 50 ? 'high' : rate >= 20 ? 'medium' : 'low';
+}
+
+const severityStyles = {
+  high: 'text-destructive',
+  medium: 'text-amber-600',
+  low: 'text-muted-foreground',
+};
+
 export function FunnelAnalysis() {
   const [activeTab, setActiveTab] = useState<SegmentTab>('device');
   const [funnelData, setFunnelData] = useState(FALLBACK_FUNNEL);
@@ -75,6 +92,7 @@ export function FunnelAnalysis() {
               label: s.stage,
               count: s.count,
               percentage: s.percentage,
+              dropoff: s.dropoff,
               color: STAGE_COLORS[i] ?? '#7F77DD',
             }))
           );
@@ -139,15 +157,24 @@ export function FunnelAnalysis() {
               ))}
             </div>
 
-            <div className="bg-secondary/50 rounded-lg p-4">
-              <div className="space-y-2">
-                {segments[activeTab].map((seg) => (
-                  <div key={seg.label} className="flex justify-between items-center">
-                    <span className="text-foreground">{seg.label}</span>
-                    <span className="font-medium">{seg.conversion_rate}% conversion</span>
+            <div className="bg-secondary/50 rounded-lg p-4 space-y-3">
+              {segments[activeTab].map((seg) => {
+                const severity = seg.worst_dropoff != null ? dropoffSeverity(seg.worst_dropoff) : 'low';
+                return (
+                  <div key={seg.label} className="flex justify-between items-start pb-3 border-b border-border/50 last:border-0 last:pb-0">
+                    <div>
+                      <span className="text-foreground font-medium">{seg.label}</span>
+                      {seg.worst_stage && seg.worst_dropoff != null && (
+                        <div className={`flex items-center gap-1 text-xs mt-1 ${severityStyles[severity]}`}>
+                          <TrendingDown className="w-3 h-3" />
+                          <span>Worst drop-off: {seg.worst_stage} ({seg.worst_dropoff.toFixed(1)}%)</span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="font-medium whitespace-nowrap">{seg.conversion_rate}% conversion</span>
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
         </div>

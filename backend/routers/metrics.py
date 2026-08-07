@@ -10,6 +10,8 @@ router = APIRouter(prefix="/metrics", tags=["metrics"])
 # In-memory storage per startup (we'll move to DB later)
 startup_data = {}
 
+FUNNEL_STAGES = ['visit', 'signup', 'add_to_cart', 'purchase']
+
 @router.post("/upload")
 async def upload_csv(
     file: UploadFile = File(...),
@@ -105,8 +107,20 @@ def get_dashboard_metrics(
         "has_data": True
     }
 
+def _funnel_dropoffs(group: pd.DataFrame):
+    """Given a subset of the dataframe, compute stage-to-stage dropoff %."""
+    counts = {stage: group[group['event'] == stage]['user_id'].nunique() for stage in FUNNEL_STAGES}
+    dropoffs = []
+    prev_count = counts[FUNNEL_STAGES[0]]
+    for stage in FUNNEL_STAGES[1:]:
+        count = counts[stage]
+        dropoff = round(((prev_count - count) / prev_count) * 100, 1) if prev_count > 0 else 0.0
+        dropoffs.append((stage, dropoff))
+        prev_count = count
+    return dropoffs
+
 def _segment_conversion(df: pd.DataFrame, column: str):
-    """Conversion rate (purchasers / visitors) grouped by a segmentation column."""
+    """Conversion rate + worst drop-off stage, grouped by a segmentation column."""
     if column not in df.columns:
         return []
 
@@ -115,7 +129,16 @@ def _segment_conversion(df: pd.DataFrame, column: str):
         visitors = group[group['event'] == 'visit']['user_id'].nunique()
         purchasers = group[group['event'] == 'purchase']['user_id'].nunique()
         rate = round((purchasers / visitors * 100), 1) if visitors > 0 else 0.0
-        results.append({"label": str(value), "conversion_rate": rate})
+
+        dropoffs = _funnel_dropoffs(group)
+        worst_stage, worst_dropoff = max(dropoffs, key=lambda d: d[1]) if dropoffs else (None, None)
+
+        results.append({
+            "label": str(value),
+            "conversion_rate": rate,
+            "worst_stage": worst_stage.replace('_', ' ').title() if worst_stage else None,
+            "worst_dropoff": worst_dropoff,
+        })
 
     # Highest conversion first
     results.sort(key=lambda r: r['conversion_rate'], reverse=True)
@@ -131,16 +154,15 @@ def get_funnel_metrics(
 
     df = pd.DataFrame(startup_data[current_user.email])
 
-    stages = ['visit', 'signup', 'add_to_cart', 'purchase']
     counts = {}
-    for stage in stages:
+    for stage in FUNNEL_STAGES:
         counts[stage] = df[df['event'] == stage]['user_id'].nunique()
 
     total = counts['visit'] if counts['visit'] > 0 else 1
 
     funnel = []
     prev_count = total
-    for stage in stages:
+    for stage in FUNNEL_STAGES:
         count = counts[stage]
         percentage = round((count / total) * 100, 1)
         dropoff = round(((prev_count - count) / prev_count) * 100, 1) if prev_count > 0 else 0
