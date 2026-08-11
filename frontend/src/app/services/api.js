@@ -49,6 +49,18 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     return res.json()
+  },
+
+  sendChatMessage: async (token, message, history) => {
+    const res = await fetch(`${BASE_URL}/ai/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ message, history })
+    })
+    return res.json()
   }
 }
 

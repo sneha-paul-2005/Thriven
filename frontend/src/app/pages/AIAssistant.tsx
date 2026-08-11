@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Send, Sparkles } from 'lucide-react';
 import { ChatBubble } from '../components/ChatBubble';
 import { Button } from '../components/Button';
+import { api, getToken } from '../services/api';
 
 interface Message {
   type: 'user' | 'ai';
@@ -12,10 +13,29 @@ export function AIAssistant() {
   const [messages, setMessages] = useState<Message[]>([
     {
       type: 'ai',
-      message: 'Hi! I\'m your AI growth assistant. I can help you understand your metrics, identify opportunities, and answer questions about your data. What would you like to know?',
+      message: 'Hi! I\'m Troy, your AI growth assistant. I can help you understand your metrics, identify opportunities, and answer questions about your data. What would you like to know?',
     },
   ]);
   const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const [metrics, setMetrics] = useState(null);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      const token = getToken();
+      if (!token) return;
+      try {
+        const data = await api.getDashboard(token);
+        if (!data.detail) setMetrics(data);
+      } catch (_) {}
+    };
+    fetchMetrics();
+  }, []);
+
+  const hasData = metrics?.has_data;
+  const dau = hasData ? metrics.dau : '3,247';
+  const mau = hasData ? metrics.mau : '28,450';
+  const conversion = hasData ? `${metrics.conversion_rate}%` : '3.8%';
 
   const suggestedQuestions = [
     'Why is my retention dropping?',
@@ -24,29 +44,25 @@ export function AIAssistant() {
     'What should I focus on this week?',
   ];
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = async () => {
+    if (!input.trim() || sending) return;
 
     const userMessage = input;
     setInput('');
-
     setMessages(prev => [...prev, { type: 'user', message: userMessage }]);
+    setSending(true);
 
-    setTimeout(() => {
-      let aiResponse = '';
+    try {
+      const token = getToken();
+      const history = messages.map(m => ({ role: m.type === 'user' ? 'user' : 'assistant', content: m.message }));
+      const result = await api.sendChatMessage(token, userMessage, history);
 
-      if (userMessage.toLowerCase().includes('retention')) {
-        aiResponse = 'Based on your cohort data, I see that Week 2 retention has dropped from 68% to 64% over the last month. The main cause appears to be lower engagement from users who signed up via paid ads compared to organic signups.\n\nI recommend:\n1. Add an onboarding email sequence for new users\n2. Implement push notifications for key features\n3. Create a "Week 2 win" milestone to celebrate with users';
-      } else if (userMessage.toLowerCase().includes('traffic')) {
-        aiResponse = 'Looking at your conversion data by traffic source:\n\nOrganic Search: 5.2% conversion (best performing)\nPaid Ads: 3.4% conversion\nSocial Media: 2.1% conversion\n\nOrganic traffic converts 53% better than paid ads. Consider investing more in SEO and content marketing to drive qualified organic traffic.';
-      } else if (userMessage.toLowerCase().includes('funnel')) {
-        aiResponse = 'Your biggest drop-off is between "Add to Cart" (6%) and "Purchase" (3%). This 50% drop suggests friction in your checkout process.\n\nQuick wins:\n1. Reduce checkout steps from 4 to 2\n2. Add guest checkout option\n3. Display security badges near payment form\n4. Enable one-click payment options\n\nThese changes typically improve conversion by 15-25%.';
-      } else {
-        aiResponse = 'Based on your current metrics, here are your top priorities:\n\n1. Fix the checkout funnel (highest impact)\n2. Improve Week 2 retention with better onboarding\n3. Scale organic traffic (your best-converting source)\n\nFocus on the checkout optimization first - it has the potential to increase revenue by 20%+ in the next 30 days.';
-      }
-
+      const aiResponse = result.reply || result.detail || 'Sorry, I ran into an issue answering that. Try again?';
       setMessages(prev => [...prev, { type: 'ai', message: aiResponse }]);
-    }, 1000);
+    } catch (_) {
+      setMessages(prev => [...prev, { type: 'ai', message: 'Something went wrong reaching the assistant. Please try again.' }]);
+    }
+    setSending(false);
   };
 
   const handleQuestionClick = (question: string) => {
@@ -60,34 +76,27 @@ export function AIAssistant() {
         <h3 className="text-xl font-semibold mb-4">Startup Context</h3>
         <div className="space-y-4">
           <div>
-            <p className="text-sm text-muted-foreground mb-1">Industry</p>
-            <p className="font-medium">E-commerce SaaS</p>
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Stage</p>
-            <p className="font-medium">Early Growth</p>
-          </div>
-          <div>
             <p className="text-sm text-muted-foreground mb-1">Key Metrics</p>
             <div className="space-y-2 mt-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm">DAU</span>
-                <span className="text-sm font-medium">3,247</span>
+                <span className="text-sm font-medium">{dau}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">MAU</span>
-                <span className="text-sm font-medium">28,450</span>
+                <span className="text-sm font-medium">{mau}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm">Conversion</span>
-                <span className="text-sm font-medium">3.8%</span>
+                <span className="text-sm font-medium">{conversion}</span>
               </div>
             </div>
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Current Focus</p>
-            <p className="font-medium">Improving conversion funnel</p>
-          </div>
+          {!hasData && (
+            <p className="text-xs text-muted-foreground">
+              Showing sample data. Upload a CSV from the Dashboard for personalized answers.
+            </p>
+          )}
         </div>
       </div>
 
@@ -98,6 +107,12 @@ export function AIAssistant() {
           {messages.map((msg, index) => (
             <ChatBubble key={index} type={msg.type} message={msg.message} />
           ))}
+          {sending && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground px-2 py-1">
+              <Sparkles className="w-4 h-4 animate-pulse" />
+              Thinking...
+            </div>
+          )}
         </div>
 
         {/* Suggested Questions */}
@@ -127,12 +142,13 @@ export function AIAssistant() {
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSend()}
               placeholder="Ask me anything about your growth metrics..."
-              className="flex-1 px-4 py-3 rounded-lg bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+              disabled={sending}
+              className="flex-1 px-4 py-3 rounded-lg bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
             />
             <Button
               variant="primary"
               onClick={handleSend}
-              disabled={!input.trim()}
+              disabled={!input.trim() || sending}
             >
               <Send className="w-5 h-5" />
             </Button>
