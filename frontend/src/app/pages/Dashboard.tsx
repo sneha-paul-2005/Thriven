@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Users, UserPlus, ShoppingCart, TrendingUp, AlertTriangle, Calendar, Upload, X, CheckCircle } from 'lucide-react';
+import { Users, UserPlus, ShoppingCart, TrendingUp, TrendingDown, AlertTriangle, Calendar, Upload, X, CheckCircle } from 'lucide-react';
 import { MetricCard } from '../components/MetricCard';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { api, getToken } from '../services/api';
@@ -21,6 +21,24 @@ const FALLBACK_EVENTS = [
   { date: 'Jan 22', visits: 2200, signups: 500, purchases: 150 },
   { date: 'Jan 29', visits: 2800, signups: 700, purchases: 200 },
 ];
+
+type Alert = {
+  severity: 'high' | 'medium' | 'positive';
+  title: string;
+  message: string;
+};
+
+const FALLBACK_ALERTS: Alert[] = [
+  { severity: 'high', title: 'High cart abandonment', message: 'Checkout drop-off rate increased to 45%' },
+  { severity: 'medium', title: 'Retention dip detected', message: 'Week 2 retention down 5% this cohort' },
+  { severity: 'positive', title: 'Traffic surge', message: 'Organic search up 34% this week' },
+];
+
+const alertStyles = {
+  high: { box: 'bg-destructive/10 border-destructive/20', icon: 'text-destructive' },
+  medium: { box: 'bg-amber-500/10 border-amber-500/20', icon: 'text-amber-600' },
+  positive: { box: 'bg-accent/10 border-accent/20', icon: 'text-accent' },
+};
 
 export function Dashboard() {
   const [metrics, setMetrics] = useState(null);
@@ -94,6 +112,11 @@ export function Dashboard() {
   const eventData = hasData && metrics.event_breakdown?.length
     ? metrics.event_breakdown
     : FALLBACK_EVENTS;
+
+  // Anomaly alerts from backend, fallback to sample alerts
+  const alerts: Alert[] = hasData && metrics.alerts?.length
+    ? metrics.alerts
+    : FALLBACK_ALERTS;
 
   return (
     <div className="space-y-6">
@@ -185,29 +208,25 @@ export function Dashboard() {
         {/* Recent Alerts */}
         <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
           <h3 className="text-xl font-semibold mb-4">Recent Alerts</h3>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-destructive mt-0.5" />
-              <div className="flex-1">
-                <p className="font-medium text-foreground">High cart abandonment</p>
-                <p className="text-sm text-muted-foreground">Checkout drop-off rate increased to 45%</p>
-              </div>
+          {alerts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No anomalies detected — everything looks steady.</p>
+          ) : (
+            <div className="space-y-3">
+              {alerts.map((alert, i) => {
+                const style = alertStyles[alert.severity];
+                const Icon = alert.severity === 'positive' ? TrendingUp : AlertTriangle;
+                return (
+                  <div key={i} className={`flex items-start gap-3 p-3 border rounded-lg ${style.box}`}>
+                    <Icon className={`w-5 h-5 mt-0.5 ${style.icon}`} />
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground">{alert.title}</p>
+                      <p className="text-sm text-muted-foreground">{alert.message}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex items-start gap-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
-              <div className="flex-1">
-                <p className="font-medium text-foreground">Retention dip detected</p>
-                <p className="text-sm text-muted-foreground">Week 2 retention down 5% this cohort</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-accent/10 border border-accent/20 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-accent mt-0.5" />
-              <div className="flex-1">
-                <p className="font-medium text-foreground">Traffic surge</p>
-                <p className="text-sm text-muted-foreground">Organic search up 34% this week</p>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 

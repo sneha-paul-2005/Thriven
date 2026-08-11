@@ -35,6 +35,67 @@ async def upload_csv(
     startup_data[current_user.email] = df.to_dict('records')
     return {"message": "Data uploaded successfully", "rows": len(df)}
 
+def _detect_dau_alerts(df: pd.DataFrame, latest_date):
+    """Compare today's DAU to yesterday, and to the trailing 7-day average."""
+    alerts = []
+
+    daily_users = df.groupby('date')['user_id'].nunique()
+
+    today_dau = int(daily_users.get(latest_date, 0))
+
+    # --- Day-over-day check ---
+    yesterday = latest_date - pd.Timedelta(days=1)
+    if yesterday in daily_users.index:
+        yesterday_dau = int(daily_users[yesterday])
+        if yesterday_dau > 0:
+            change = round(((today_dau - yesterday_dau) / yesterday_dau) * 100, 1)
+            if change <= -30:
+                alerts.append({
+                    "severity": "high",
+                    "title": "DAU dropped sharply vs yesterday",
+                    "message": f"Daily active users fell {abs(change)}% compared to yesterday ({yesterday_dau} → {today_dau})."
+                })
+            elif change <= -15:
+                alerts.append({
+                    "severity": "medium",
+                    "title": "DAU down vs yesterday",
+                    "message": f"Daily active users are down {abs(change)}% compared to yesterday ({yesterday_dau} → {today_dau})."
+                })
+            elif change >= 20:
+                alerts.append({
+                    "severity": "positive",
+                    "title": "DAU surge vs yesterday",
+                    "message": f"Daily active users are up {change}% compared to yesterday ({yesterday_dau} → {today_dau})."
+                })
+
+    # --- vs 7-day average check ---
+    seven_days_ago = latest_date - pd.Timedelta(days=7)
+    trailing_window = daily_users[(daily_users.index >= seven_days_ago) & (daily_users.index < latest_date)]
+    if len(trailing_window) > 0:
+        avg_dau = trailing_window.mean()
+        if avg_dau > 0:
+            change = round(((today_dau - avg_dau) / avg_dau) * 100, 1)
+            if change <= -30:
+                alerts.append({
+                    "severity": "high",
+                    "title": "DAU well below recent average",
+                    "message": f"Today's DAU ({today_dau}) is {abs(change)}% below the last 7-day average ({avg_dau:.1f})."
+                })
+            elif change <= -15:
+                alerts.append({
+                    "severity": "medium",
+                    "title": "DAU trending below average",
+                    "message": f"Today's DAU ({today_dau}) is {abs(change)}% below the last 7-day average ({avg_dau:.1f})."
+                })
+            elif change >= 20:
+                alerts.append({
+                    "severity": "positive",
+                    "title": "DAU trending above average",
+                    "message": f"Today's DAU ({today_dau}) is {change}% above the last 7-day average ({avg_dau:.1f})."
+                })
+
+    return alerts
+
 @router.get("/dashboard")
 def get_dashboard_metrics(
     current_user=Depends(get_current_user),
@@ -48,6 +109,7 @@ def get_dashboard_metrics(
             "conversion_rate": 0,
             "growth_trend": [],
             "event_breakdown": [],
+            "alerts": [],
             "north_star": 0,
             "has_data": False
         }
@@ -96,6 +158,9 @@ def get_dashboard_metrics(
             "purchases": int((group['event'] == 'purchase').sum()),
         })
 
+    # DAU anomaly alerts
+    alerts = _detect_dau_alerts(df, latest_date)
+
     return {
         "dau": int(dau),
         "mau": int(mau),
@@ -103,6 +168,7 @@ def get_dashboard_metrics(
         "conversion_rate": float(conversion_rate),
         "growth_trend": growth_trend,
         "event_breakdown": event_breakdown,
+        "alerts": alerts,
         "north_star": int(north_star),
         "has_data": True
     }
