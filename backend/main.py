@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from database import engine
 import models
-from routers import auth, metrics, ai
+from routers import auth, metrics, ai, benchmark
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -28,6 +28,7 @@ async def unauthorized_handler(request: Request, exc):
 app.include_router(auth.router)
 app.include_router(metrics.router)
 app.include_router(ai.router)
+app.include_router(benchmark.router)
 
 @app.get("/")
 def root():

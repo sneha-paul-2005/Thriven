@@ -61,6 +61,25 @@ export const api = {
       body: JSON.stringify({ message, history })
     })
     return res.json()
+  },
+
+  getBenchmarks: async (token) => {
+    const res = await fetch(`${BASE_URL}/benchmark`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return res.json()
+  },
+
+  setBenchmarks: async (token, baseline) => {
+    const res = await fetch(`${BASE_URL}/benchmark/set`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(baseline)
+    })
+    return res.json()
   }
 }
 

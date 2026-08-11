@@ -8,6 +8,8 @@ import { FunnelAnalysis } from './pages/FunnelAnalysis';
 import { AIAssistant } from './pages/AIAssistant';
 import { Settings } from './pages/Settings';
 import { isLoggedIn } from './services/api';
+import { Benchmark } from './pages/Benchmark';
+
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isLoggedIn()) {
@@ -42,6 +44,7 @@ export default function App() {
         }>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/funnel" element={<FunnelAnalysis />} />
+          <Route path="/benchmark" element={<Benchmark />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
