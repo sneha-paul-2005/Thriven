@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router';
-import { LayoutDashboard, Target, Sparkles, Settings, LogOut, Bell, User, Menu, X, Award, Rocket } from 'lucide-react';
+import { LayoutDashboard, Target, Sparkles, Settings, LogOut, Bell, User, Menu, X, Award, Rocket, Users } from 'lucide-react';
 import { NavItem } from './NavItem';
 import { LogoIcon } from './LogoIcon';
 import { getStartupName, removeToken } from '../services/api';
@@ -43,6 +43,7 @@ export function Layout() {
               <NavItem icon={Target} label="Funnel" to="/funnel" />
               <NavItem icon={Award} label="Benchmark" to="/benchmark" />
               <NavItem icon={Rocket} label="Simulation" to="/simulation" />
+              <NavItem icon={Users} label="Cohorts" to="/cohorts" />
               <NavItem icon={Sparkles} label="AI Assistant" to="/ai-assistant" />
               <NavItem icon={Settings} label="Settings" to="/settings" />
             </nav>

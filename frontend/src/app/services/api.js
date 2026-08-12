@@ -92,6 +92,13 @@ export const api = {
       body: JSON.stringify(params)
     })
     return res.json()
+  },
+
+  getCohorts: async (token, granularity) => {
+    const res = await fetch(`${BASE_URL}/cohorts?granularity=${granularity}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return res.json()
   }
 }
 
