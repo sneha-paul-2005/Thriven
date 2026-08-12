@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from database import engine
 import models
-from routers import auth, metrics, ai, benchmark, simulation, cohorts
+from routers import auth, metrics, ai, benchmark, simulation, cohorts, digest
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -31,6 +31,7 @@ app.include_router(ai.router)
 app.include_router(benchmark.router)
 app.include_router(simulation.router)
 app.include_router(cohorts.router)
+app.include_router(digest.router)
 
 @app.get("/")
 def root():

@@ -1,7 +1,33 @@
-import { User, Building2, CreditCard, Bell } from 'lucide-react';
+import { useState } from 'react';
+import { User, Building2, CreditCard, Bell, Mail, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '../components/Button';
+import { api, getToken } from '../services/api';
 
 export function Settings() {
+  const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [sendMessage, setSendMessage] = useState('');
+
+  const handleSendDigest = async () => {
+    setSending(true);
+    setSendStatus('idle');
+    try {
+      const token = getToken();
+      const result = await api.sendDigestEmail(token);
+      if (result.message) {
+        setSendStatus('success');
+        setSendMessage(result.message);
+      } else {
+        setSendStatus('error');
+        setSendMessage(result.detail || 'Failed to send digest email.');
+      }
+    } catch (_) {
+      setSendStatus('error');
+      setSendMessage('Something went wrong sending the email.');
+    }
+    setSending(false);
+  };
+
   return (
     <div className="max-w-4xl space-y-6">
       <div>
@@ -126,6 +152,36 @@ export function Settings() {
               <input type="checkbox" className="sr-only peer" />
               <div className="w-11 h-6 bg-switch-background peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
             </label>
+          </div>
+
+          <div className="pt-4 border-t border-border">
+            <div className="flex items-center gap-3 mb-3">
+              <Mail className="w-5 h-5 text-primary" />
+              <div>
+                <p className="font-medium text-foreground">Weekly Digest Email</p>
+                <p className="text-sm text-muted-foreground">Send yourself a test digest with your current metrics and alerts</p>
+              </div>
+            </div>
+            <button
+              onClick={handleSendDigest}
+              disabled={sending}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+            >
+              {sending ? 'Sending...' : 'Send Test Digest Email'}
+            </button>
+
+            {sendStatus === 'success' && (
+              <div className="flex items-center gap-2 text-sm text-green-600 mt-3">
+                <CheckCircle className="w-4 h-4" />
+                {sendMessage}
+              </div>
+            )}
+            {sendStatus === 'error' && (
+              <div className="flex items-center gap-2 text-sm text-destructive mt-3">
+                <AlertTriangle className="w-4 h-4" />
+                {sendMessage}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -99,6 +99,14 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     return res.json()
+  },
+
+  sendDigestEmail: async (token) => {
+    const res = await fetch(`${BASE_URL}/digest/send`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return res.json()
   }
 }
 
