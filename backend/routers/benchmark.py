@@ -83,6 +83,28 @@ def _apply_drift(email: str):
 
     entry["last_drift_date"] = today
 
+def _compute_drift_deltas(history: list) -> dict:
+    """For each metric, compute change since yesterday and since ~7 days ago."""
+    deltas = {}
+    metrics = ["conversion_rate", "retention_rate", "dau_mau_ratio"]
+
+    if not history:
+        return {m: {"since_yesterday": None, "since_week": None} for m in metrics}
+
+    latest = history[-1]
+
+    yesterday = history[-2] if len(history) >= 2 else None
+    week_ago = history[-8] if len(history) >= 8 else history[0]
+
+    for m in metrics:
+        deltas[m] = {
+            "since_yesterday": round(latest[m] - yesterday[m], 1) if yesterday else None,
+            "since_week": round(latest[m] - week_ago[m], 1) if week_ago else None,
+        }
+
+    return deltas
+
+
 @router.get("")
 def get_benchmark(
     current_user=Depends(get_current_user),
@@ -102,11 +124,14 @@ def get_benchmark(
         "dau_mau_ratio": 0.0,
     }
 
+    trimmed_history = entry["history"][-30:]
+
     return {
         "has_benchmark": True,
         "your_metrics": your_metrics,
         "current": entry["current"],
-        "history": entry["history"][-30:],  # last 30 days, keep the chart readable
+        "history": trimmed_history,
+        "drift": _compute_drift_deltas(trimmed_history),
     }
 
 @router.post("/set")

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Award, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Award, TrendingUp, TrendingDown, Minus, ArrowUp, ArrowDown } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { api, getToken } from '../services/api';
 
 type MetricKey = 'conversion_rate' | 'retention_rate' | 'dau_mau_ratio';
+
+type DriftDelta = { since_yesterday: number | null; since_week: number | null };
 
 const METRIC_LABELS: Record<MetricKey, string> = {
   conversion_rate: 'Conversion Rate',
@@ -17,6 +19,7 @@ export function Benchmark() {
   const [yourMetrics, setYourMetrics] = useState<Record<MetricKey, number> | null>(null);
   const [current, setCurrent] = useState<Record<MetricKey, number> | null>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [drift, setDrift] = useState<Record<MetricKey, DriftDelta> | null>(null);
 
   const [form, setForm] = useState({ conversion_rate: '', retention_rate: '', dau_mau_ratio: '' });
   const [saving, setSaving] = useState(false);
@@ -32,6 +35,7 @@ export function Benchmark() {
         setYourMetrics(data.your_metrics);
         setCurrent(data.current);
         setHistory(data.history || []);
+        setDrift(data.drift || null);
       } else {
         setHasBenchmark(false);
       }
@@ -75,6 +79,19 @@ export function Benchmark() {
     if (yourVal > benchmarkVal) return <TrendingUp className="w-5 h-5 text-accent" />;
     if (yourVal < benchmarkVal) return <TrendingDown className="w-5 h-5 text-destructive" />;
     return <Minus className="w-5 h-5 text-muted-foreground" />;
+  };
+
+  const renderDriftLine = (label: string, value: number | null) => {
+    if (value === null || value === 0) return null;
+    const isUp = value > 0;
+    const Icon = isUp ? ArrowUp : ArrowDown;
+    const colorClass = isUp ? 'text-accent' : 'text-destructive';
+    return (
+      <div className={`flex items-center gap-1 text-xs ${colorClass}`}>
+        <Icon className="w-3 h-3" />
+        <span>{Math.abs(value)}% {label}</span>
+      </div>
+    );
   };
 
   if (loading) {
@@ -161,6 +178,7 @@ export function Benchmark() {
             {(Object.keys(METRIC_LABELS) as MetricKey[]).map((key) => {
               const yourVal = yourMetrics?.[key] ?? 0;
               const benchmarkVal = current?.[key] ?? 0;
+              const metricDrift = drift?.[key];
               return (
                 <div key={key} className="bg-card rounded-xl p-6 shadow-sm border border-border">
                   <div className="flex items-center justify-between mb-3">
@@ -168,9 +186,18 @@ export function Benchmark() {
                     {renderTrendIcon(yourVal, benchmarkVal)}
                   </div>
                   <p className="text-3xl font-bold text-foreground mb-1">{yourVal}%</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-muted-foreground mb-2">
                     Industry benchmark today: <span className="font-medium">{benchmarkVal}%</span>
                   </p>
+                  {metricDrift && (
+                    <div className="space-y-1 pt-2 border-t border-border/50">
+                      {renderDriftLine('since yesterday', metricDrift.since_yesterday)}
+                      {renderDriftLine('this week', metricDrift.since_week)}
+                      {metricDrift.since_yesterday === 0 && metricDrift.since_week === 0 && (
+                        <p className="text-xs text-muted-foreground">No market movement yet</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

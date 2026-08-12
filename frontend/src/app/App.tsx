@@ -9,6 +9,7 @@ import { AIAssistant } from './pages/AIAssistant';
 import { Settings } from './pages/Settings';
 import { isLoggedIn } from './services/api';
 import { Benchmark } from './pages/Benchmark';
+import { GrowthSimulation } from './pages/GrowthSimulation';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/funnel" element={<FunnelAnalysis />} />
           <Route path="/benchmark" element={<Benchmark />} />
+          <Route path="/simulation" element={<GrowthSimulation />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="/settings" element={<Settings />} />
         </Route>

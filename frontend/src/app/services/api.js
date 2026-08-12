@@ -80,6 +80,18 @@ export const api = {
       body: JSON.stringify(baseline)
     })
     return res.json()
+  },
+
+  runSimulation: async (token, params) => {
+    const res = await fetch(`${BASE_URL}/simulation/run`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(params)
+    })
+    return res.json()
   }
 }
 
