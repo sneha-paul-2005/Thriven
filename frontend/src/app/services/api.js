@@ -107,6 +107,37 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` }
     })
     return res.json()
+  },
+
+  // --- Phase 11: Public Growth Page ---
+
+  getPublicStatus: async (token) => {
+    const res = await fetch(`${BASE_URL}/public/status`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return res.json()
+  },
+
+  enablePublicPage: async (token) => {
+    const res = await fetch(`${BASE_URL}/public/enable`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return res.json()
+  },
+
+  disablePublicPage: async (token) => {
+    const res = await fetch(`${BASE_URL}/public/disable`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    return res.json()
+  },
+
+  // No auth — this is the actual public-facing endpoint PublicGrowth.tsx calls
+  getPublicPage: async (publicToken) => {
+    const res = await fetch(`${BASE_URL}/public/${publicToken}`)
+    return res.json()
   }
 }
 

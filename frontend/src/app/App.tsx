@@ -11,6 +11,8 @@ import { isLoggedIn } from './services/api';
 import { Benchmark } from './pages/Benchmark';
 import { GrowthSimulation } from './pages/GrowthSimulation';
 import { CohortAnalysis } from './pages/CohortAnalysis';
+import { PublicGrowth } from './pages/PublicGrowth';
+import { VCDashboard } from './pages/VCDashboard';
 
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -41,6 +43,8 @@ export default function App() {
           <GuestRoute><Signup /></GuestRoute>
         } />
 
+        <Route path="/grow/:token" element={<PublicGrowth />} />
+
         <Route element={
           <ProtectedRoute><Layout /></ProtectedRoute>
         }>
@@ -49,6 +53,7 @@ export default function App() {
           <Route path="/benchmark" element={<Benchmark />} />
           <Route path="/simulation" element={<GrowthSimulation />} />
           <Route path="/cohorts" element={<CohortAnalysis />} />
+          <Route path="/vc-dashboard" element={<VCDashboard />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="/settings" element={<Settings />} />
         </Route>

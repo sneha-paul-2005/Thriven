@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router';
-import { LayoutDashboard, Target, Sparkles, Settings, LogOut, Bell, User, Menu, X, Award, Rocket, Users } from 'lucide-react';
+import { LayoutDashboard, Target, Sparkles, Settings, LogOut, Bell, User, Menu, X, Award, Rocket, Users, Briefcase } from 'lucide-react';
 import { NavItem } from './NavItem';
 import { LogoIcon } from './LogoIcon';
 import { getStartupName, removeToken } from '../services/api';
@@ -44,6 +44,7 @@ export function Layout() {
               <NavItem icon={Award} label="Benchmark" to="/benchmark" />
               <NavItem icon={Rocket} label="Simulation" to="/simulation" />
               <NavItem icon={Users} label="Cohorts" to="/cohorts" />
+              <NavItem icon={Briefcase} label="VC View" to="/vc-dashboard" />
               <NavItem icon={Sparkles} label="AI Assistant" to="/ai-assistant" />
               <NavItem icon={Settings} label="Settings" to="/settings" />
             </nav>
@@ -62,7 +63,6 @@ export function Layout() {
         <header className="bg-background border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              {/* Hamburger button — always visible */}
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 className="p-2 hover:bg-secondary rounded-lg transition-colors"

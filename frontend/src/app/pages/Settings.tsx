@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { User, Building2, CreditCard, Bell, Mail, CheckCircle, AlertTriangle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Building2, Bell, Mail, CheckCircle, AlertTriangle, Globe, Copy, Check } from 'lucide-react';
 import { Button } from '../components/Button';
 import { api, getToken } from '../services/api';
 
@@ -7,6 +7,66 @@ export function Settings() {
   const [sending, setSending] = useState(false);
   const [sendStatus, setSendStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [sendMessage, setSendMessage] = useState('');
+
+  // Phase 11 — Public Growth Page state
+  const [publicEnabled, setPublicEnabled] = useState(false);
+  const [publicUrl, setPublicUrl] = useState('');
+  const [publicLoading, setPublicLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    fetchPublicStatus();
+  }, []);
+
+  const fetchPublicStatus = async () => {
+    try {
+      const token = getToken();
+      const result = await api.getPublicStatus(token);
+      if (result.enabled && result.token) {
+        setPublicEnabled(true);
+        setPublicUrl(`${window.location.origin}/grow/${result.token}`);
+      } else {
+        setPublicEnabled(false);
+        setPublicUrl('');
+      }
+    } catch (_) {
+      // Silently fail on load — settings page shouldn't break if this errors
+      setPublicEnabled(false);
+      setPublicUrl('');
+    }
+  };
+
+  const handleTogglePublic = async () => {
+    setPublicLoading(true);
+    try {
+      const token = getToken();
+      if (publicEnabled) {
+        await api.disablePublicPage(token);
+        setPublicEnabled(false);
+        setPublicUrl('');
+      } else {
+        const result = await api.enablePublicPage(token);
+        if (result.token) {
+          setPublicEnabled(true);
+          setPublicUrl(`${window.location.origin}/grow/${result.token}`);
+        }
+      }
+    } catch (_) {
+      // Leave state as-is on failure; user can retry the toggle
+    }
+    setPublicLoading(false);
+  };
+
+  const handleCopy = async () => {
+    if (!publicUrl) return;
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (_) {
+      // Clipboard API unavailable — no-op
+    }
+  };
 
   const handleSendDigest = async () => {
     setSending(true);
@@ -108,6 +168,56 @@ export function Settings() {
           </div>
 
           <Button variant="primary">Save changes</Button>
+        </div>
+      </div>
+
+      {/* Public Growth Page — Phase 11 */}
+      <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <Globe className="w-5 h-5 text-primary" />
+          </div>
+          <h3 className="text-xl font-semibold">Public Growth Page</h3>
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-foreground">Share a public snapshot</p>
+              <p className="text-sm text-muted-foreground">
+                Anyone with the link can view your DAU, MAU, and growth trend — no login required.
+                Funnel and conversion data stay private.
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={publicEnabled}
+                onChange={handleTogglePublic}
+                disabled={publicLoading}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-switch-background peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+            </label>
+          </div>
+
+          {publicEnabled && publicUrl && (
+            <div className="flex items-center gap-2 pt-2">
+              <input
+                type="text"
+                readOnly
+                value={publicUrl}
+                className="flex-1 px-4 py-3 rounded-lg bg-input-background border border-border text-muted-foreground text-sm"
+              />
+              <button
+                onClick={handleCopy}
+                className="p-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                title="Copy link"
+              >
+                {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
