@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 from database import get_db
 from auth import get_current_user
-from routers.metrics import startup_data, _detect_dau_alerts
+from routers.metrics import get_user_data, _detect_dau_alerts
 
 load_dotenv()
 
@@ -17,12 +17,12 @@ if RESEND_API_KEY:
 
 router = APIRouter(prefix="/digest", tags=["digest"])
 
-def _build_digest_data(email: str):
-    """Compute the same core metrics + alerts shown on the Dashboard."""
-    if email not in startup_data:
+def _build_digest_data(db: Session, email: str):
+    records = get_user_data(db, email)
+    if records is None:
         return None
 
-    df = pd.DataFrame(startup_data[email])
+    df = pd.DataFrame(records)
     df['date'] = pd.to_datetime(df['date'], dayfirst=True)
 
     latest_date = df['date'].max()
@@ -118,7 +118,7 @@ def send_digest(
     if not RESEND_API_KEY:
         raise HTTPException(status_code=500, detail="Email service is not configured. Missing RESEND_API_KEY.")
 
-    data = _build_digest_data(current_user.email)
+    data = _build_digest_data(db, current_user.email)
     if data is None:
         raise HTTPException(status_code=400, detail="Upload a CSV first to generate a digest with real data.")
 

@@ -2,15 +2,30 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 from database import get_db
 from auth import get_current_user
+from models import MetricsUpload
 import pandas as pd
 import io
 
 router = APIRouter(prefix="/metrics", tags=["metrics"])
 
-# In-memory storage per startup (we'll move to DB later)
-startup_data = {}
-
 FUNNEL_STAGES = ['visit', 'signup', 'add_to_cart', 'purchase']
+
+
+def get_user_data(db: Session, email: str):
+    """Returns a user's uploaded CSV rows as a list of dicts, or None if nothing uploaded yet."""
+    record = db.query(MetricsUpload).filter(MetricsUpload.user_email == email).first()
+    return record.row_data if record else None
+
+
+def set_user_data(db: Session, email: str, records: list):
+    """Upsert a user's uploaded CSV rows — replaces any previous upload."""
+    existing = db.query(MetricsUpload).filter(MetricsUpload.user_email == email).first()
+    if existing:
+        existing.row_data = records
+    else:
+        db.add(MetricsUpload(user_email=email, row_data=records))
+    db.commit()
+
 
 @router.post("/upload")
 async def upload_csv(
@@ -32,8 +47,9 @@ async def upload_csv(
                 detail=f"Missing required column: {col}"
             )
 
-    startup_data[current_user.email] = df.to_dict('records')
+    set_user_data(db, current_user.email, df.to_dict('records'))
     return {"message": "Data uploaded successfully", "rows": len(df)}
+
 
 def _detect_dau_alerts(df: pd.DataFrame, latest_date):
     """Compare today's DAU to yesterday, and to the trailing 7-day average."""
@@ -43,7 +59,6 @@ def _detect_dau_alerts(df: pd.DataFrame, latest_date):
 
     today_dau = int(daily_users.get(latest_date, 0))
 
-    # --- Day-over-day check ---
     yesterday = latest_date - pd.Timedelta(days=1)
     if yesterday in daily_users.index:
         yesterday_dau = int(daily_users[yesterday])
@@ -68,7 +83,6 @@ def _detect_dau_alerts(df: pd.DataFrame, latest_date):
                     "message": f"Daily active users are up {change}% compared to yesterday ({yesterday_dau} → {today_dau})."
                 })
 
-    # --- vs 7-day average check ---
     seven_days_ago = latest_date - pd.Timedelta(days=7)
     trailing_window = daily_users[(daily_users.index >= seven_days_ago) & (daily_users.index < latest_date)]
     if len(trailing_window) > 0:
@@ -96,12 +110,14 @@ def _detect_dau_alerts(df: pd.DataFrame, latest_date):
 
     return alerts
 
+
 @router.get("/dashboard")
 def get_dashboard_metrics(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.email not in startup_data:
+    records = get_user_data(db, current_user.email)
+    if records is None:
         return {
             "dau": 0,
             "mau": 0,
@@ -114,29 +130,24 @@ def get_dashboard_metrics(
             "has_data": False
         }
 
-    df = pd.DataFrame(startup_data[current_user.email])
+    df = pd.DataFrame(records)
     df['date'] = pd.to_datetime(df['date'], dayfirst=True)
 
-    # DAU — unique users on most recent date
     latest_date = df['date'].max()
     dau = df[df['date'] == latest_date]['user_id'].nunique()
 
-    # MAU — unique users in last 30 days
     thirty_days_ago = latest_date - pd.Timedelta(days=30)
     mau = df[df['date'] >= thirty_days_ago]['user_id'].nunique()
 
-    # Retention rate — users who came back after day 1
     first_visit = df.groupby('user_id')['date'].min()
     returning = df.groupby('user_id')['date'].nunique()
     retained = (returning > 1).sum()
     retention_rate = round((retained / len(first_visit)) * 100, 1)
 
-    # Conversion rate — users who purchased / total visitors
     total_visitors = df[df['event'] == 'visit']['user_id'].nunique()
     purchasers = df[df['event'] == 'purchase']['user_id'].nunique()
     conversion_rate = round((purchasers / total_visitors * 100), 1) if total_visitors > 0 else 0
 
-    # Growth trend — daily active users over time
     daily = df.groupby('date')['user_id'].nunique().reset_index()
     daily.columns = ['date', 'users']
     growth_trend = [
@@ -144,21 +155,18 @@ def get_dashboard_metrics(
         for _, row in daily.iterrows()
     ]
 
-    # North Star — weekly active users
     seven_days_ago = latest_date - pd.Timedelta(days=7)
     north_star = df[df['date'] >= seven_days_ago]['user_id'].nunique()
 
-    # Event breakdown — daily counts per event type
     event_breakdown = []
     for date, group in df.groupby('date'):
         event_breakdown.append({
-            "date": str(date.date())[5:],  # MM-DD
+            "date": str(date.date())[5:],
             "visits": int((group['event'] == 'visit').sum()),
             "signups": int((group['event'] == 'signup').sum()),
             "purchases": int((group['event'] == 'purchase').sum()),
         })
 
-    # DAU anomaly alerts
     alerts = _detect_dau_alerts(df, latest_date)
 
     return {
@@ -173,8 +181,8 @@ def get_dashboard_metrics(
         "has_data": True
     }
 
+
 def _funnel_dropoffs(group: pd.DataFrame):
-    """Given a subset of the dataframe, compute stage-to-stage dropoff %."""
     counts = {stage: group[group['event'] == stage]['user_id'].nunique() for stage in FUNNEL_STAGES}
     dropoffs = []
     prev_count = counts[FUNNEL_STAGES[0]]
@@ -185,8 +193,8 @@ def _funnel_dropoffs(group: pd.DataFrame):
         prev_count = count
     return dropoffs
 
+
 def _segment_conversion(df: pd.DataFrame, column: str):
-    """Conversion rate + worst drop-off stage, grouped by a segmentation column."""
     if column not in df.columns:
         return []
 
@@ -206,19 +214,20 @@ def _segment_conversion(df: pd.DataFrame, column: str):
             "worst_dropoff": worst_dropoff,
         })
 
-    # Highest conversion first
     results.sort(key=lambda r: r['conversion_rate'], reverse=True)
     return results
+
 
 @router.get("/funnel")
 def get_funnel_metrics(
     current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.email not in startup_data:
+    records = get_user_data(db, current_user.email)
+    if records is None:
         return {"has_data": False, "stages": [], "segments": {}}
 
-    df = pd.DataFrame(startup_data[current_user.email])
+    df = pd.DataFrame(records)
 
     counts = {}
     for stage in FUNNEL_STAGES:

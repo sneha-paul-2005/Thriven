@@ -3,34 +3,35 @@ from datetime import date, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-import pandas as pd
 
 from database import get_db
 from auth import get_current_user
-from routers.metrics import startup_data
+from models import BenchmarkBaseline
+from routers.metrics import get_user_data
+import pandas as pd
 
 router = APIRouter(prefix="/benchmark", tags=["benchmark"])
 
-# In-memory storage per startup (same pattern as metrics.py)
-benchmark_data = {}
+DAILY_DRIFT_RANGE = 0.3
+WEEKLY_DRIFT_RANGE = 1.5
 
-DAILY_DRIFT_RANGE = 0.3   # small daily nudge, +/- percentage points
-WEEKLY_DRIFT_RANGE = 1.5  # bigger nudge every 7 days, +/- percentage points
 
 class BaselineInput(BaseModel):
     conversion_rate: float
     retention_rate: float
     dau_mau_ratio: float
 
+
 def _clamp(value: float) -> float:
     return round(max(0.0, min(100.0, value)), 1)
 
-def _compute_user_metrics(email: str):
-    """Real conversion rate, retention rate, and DAU/MAU ratio from uploaded CSV."""
-    if email not in startup_data:
+
+def _compute_user_metrics(db: Session, email: str):
+    records = get_user_data(db, email)
+    if records is None:
         return None
 
-    df = pd.DataFrame(startup_data[email])
+    df = pd.DataFrame(records)
     df['date'] = pd.to_datetime(df['date'], dayfirst=True)
 
     total_visitors = df[df['event'] == 'visit']['user_id'].nunique()
@@ -53,38 +54,38 @@ def _compute_user_metrics(email: str):
         "dau_mau_ratio": dau_mau_ratio,
     }
 
-def _apply_drift(email: str):
-    """Catch up the benchmark's drift for every day missed since it was last updated."""
-    entry = benchmark_data[email]
-    today = date.today()
-    last_date = entry["last_drift_date"]
 
-    days_passed = (today - last_date).days
+def _apply_drift(db: Session, entry: BenchmarkBaseline):
+    today = date.today()
+    days_passed = (today - entry.last_drift_date).days
     if days_passed <= 0:
-        return  # already up to date
+        return
+
+    current = dict(entry.current)
+    history = list(entry.history)
+    day_count = entry.day_count
 
     for offset in range(1, days_passed + 1):
-        drift_date = last_date + timedelta(days=offset)
-        entry["day_count"] += 1
+        drift_date = entry.last_drift_date + timedelta(days=offset)
+        day_count += 1
 
         for key in ["conversion_rate", "retention_rate", "dau_mau_ratio"]:
             nudge = random.uniform(-DAILY_DRIFT_RANGE, DAILY_DRIFT_RANGE)
-
-            # Bigger weekly shift every 7 days since baseline was set
-            if entry["day_count"] % 7 == 0:
+            if day_count % 7 == 0:
                 nudge += random.uniform(-WEEKLY_DRIFT_RANGE, WEEKLY_DRIFT_RANGE)
+            current[key] = _clamp(current[key] + nudge)
 
-            entry["current"][key] = _clamp(entry["current"][key] + nudge)
+        history.append({"date": str(drift_date)[5:], **current})
 
-        entry["history"].append({
-            "date": str(drift_date)[5:],  # MM-DD
-            **entry["current"]
-        })
+    entry.current = current
+    entry.history = history
+    entry.day_count = day_count
+    entry.last_drift_date = today
+    db.commit()
+    db.refresh(entry)
 
-    entry["last_drift_date"] = today
 
 def _compute_drift_deltas(history: list) -> dict:
-    """For each metric, compute change since yesterday and since ~7 days ago."""
     deltas = {}
     metrics = ["conversion_rate", "retention_rate", "dau_mau_ratio"]
 
@@ -92,7 +93,6 @@ def _compute_drift_deltas(history: list) -> dict:
         return {m: {"since_yesterday": None, "since_week": None} for m in metrics}
 
     latest = history[-1]
-
     yesterday = history[-2] if len(history) >= 2 else None
     week_ago = history[-8] if len(history) >= 8 else history[0]
 
@@ -111,28 +111,29 @@ def get_benchmark(
     db: Session = Depends(get_db)
 ):
     email = current_user.email
+    entry = db.query(BenchmarkBaseline).filter(BenchmarkBaseline.user_email == email).first()
 
-    if email not in benchmark_data:
+    if not entry:
         return {"has_benchmark": False}
 
-    _apply_drift(email)
-    entry = benchmark_data[email]
+    _apply_drift(db, entry)
 
-    your_metrics = _compute_user_metrics(email) or {
+    your_metrics = _compute_user_metrics(db, email) or {
         "conversion_rate": 0.0,
         "retention_rate": 0.0,
         "dau_mau_ratio": 0.0,
     }
 
-    trimmed_history = entry["history"][-30:]
+    trimmed_history = entry.history[-30:]
 
     return {
         "has_benchmark": True,
         "your_metrics": your_metrics,
-        "current": entry["current"],
+        "current": entry.current,
         "history": trimmed_history,
         "drift": _compute_drift_deltas(trimmed_history),
     }
+
 
 @router.post("/set")
 def set_benchmark(
@@ -148,16 +149,25 @@ def set_benchmark(
         "retention_rate": _clamp(baseline.retention_rate),
         "dau_mau_ratio": _clamp(baseline.dau_mau_ratio),
     }
+    history = [{"date": str(today)[5:], **baseline_values}]
 
-    benchmark_data[email] = {
-        "baseline": baseline_values,
-        "current": dict(baseline_values),
-        "last_drift_date": today,
-        "day_count": 0,
-        "history": [{
-            "date": str(today)[5:],
-            **baseline_values
-        }],
-    }
+    entry = db.query(BenchmarkBaseline).filter(BenchmarkBaseline.user_email == email).first()
+    if entry:
+        entry.baseline = baseline_values
+        entry.current = dict(baseline_values)
+        entry.last_drift_date = today
+        entry.day_count = 0
+        entry.history = history
+    else:
+        entry = BenchmarkBaseline(
+            user_email=email,
+            baseline=baseline_values,
+            current=dict(baseline_values),
+            last_drift_date=today,
+            day_count=0,
+            history=history,
+        )
+        db.add(entry)
 
+    db.commit()
     return {"message": "Baseline set successfully"}

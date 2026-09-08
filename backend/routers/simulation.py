@@ -5,28 +5,27 @@ import pandas as pd
 
 from database import get_db
 from auth import get_current_user
-from routers.metrics import startup_data
+from routers.metrics import get_user_data
 
 router = APIRouter(prefix="/simulation", tags=["simulation"])
 
 class SimulationInput(BaseModel):
     days: int
-    signup_rate_delta: float = 0.0     # percent change to daily new signups
-    retention_rate_delta: float = 0.0  # percentage point change to retention
-    conversion_rate_delta: float = 0.0 # percentage point change to conversion
+    signup_rate_delta: float = 0.0
+    retention_rate_delta: float = 0.0
+    conversion_rate_delta: float = 0.0
 
 def _clamp_pct(value: float) -> float:
     return max(0.0, min(100.0, value))
 
-def _baseline_inputs(email: str):
-    """Derive avg daily signups, retention rate, conversion rate, and current DAU from real data."""
-    if email not in startup_data:
+def _baseline_inputs(db: Session, email: str):
+    records = get_user_data(db, email)
+    if records is None:
         return None
 
-    df = pd.DataFrame(startup_data[email])
+    df = pd.DataFrame(records)
     df['date'] = pd.to_datetime(df['date'], dayfirst=True)
 
-    # Average daily new signups
     signup_df = df[df['event'] == 'signup']
     if len(signup_df) > 0:
         daily_signups = signup_df.groupby('date')['user_id'].nunique()
@@ -34,18 +33,15 @@ def _baseline_inputs(email: str):
     else:
         avg_daily_signups = 0.0
 
-    # Retention rate — same definition as dashboard
     first_visit = df.groupby('user_id')['date'].min()
     returning = df.groupby('user_id')['date'].nunique()
     retained = (returning > 1).sum()
     retention_rate = (retained / len(first_visit) * 100) if len(first_visit) > 0 else 0.0
 
-    # Conversion rate — same definition as dashboard
     total_visitors = df[df['event'] == 'visit']['user_id'].nunique()
     purchasers = df[df['event'] == 'purchase']['user_id'].nunique()
     conversion_rate = (purchasers / total_visitors * 100) if total_visitors > 0 else 0.0
 
-    # Current DAU — starting point for projection
     latest_date = df['date'].max()
     current_dau = df[df['date'] == latest_date]['user_id'].nunique()
 
@@ -57,7 +53,6 @@ def _baseline_inputs(email: str):
     }
 
 def _project(days: int, current_dau: float, avg_daily_signups: float, retention_rate: float, conversion_rate: float):
-    """Simple day-by-day projection: DAU = retained users + new signups."""
     projection = []
     dau = current_dau
     retention_fraction = _clamp_pct(retention_rate) / 100
@@ -83,11 +78,10 @@ def run_simulation(
     if payload.days < 1 or payload.days > 365:
         raise HTTPException(status_code=400, detail="Days must be between 1 and 365.")
 
-    inputs = _baseline_inputs(current_user.email)
+    inputs = _baseline_inputs(db, current_user.email)
     if inputs is None:
         raise HTTPException(status_code=400, detail="Upload a CSV first to run a simulation based on your real data.")
 
-    # Baseline projection — no adjustments
     baseline = _project(
         days=payload.days,
         current_dau=inputs["current_dau"],
@@ -96,7 +90,6 @@ def run_simulation(
         conversion_rate=inputs["conversion_rate"],
     )
 
-    # Adjusted projection — apply slider deltas
     adjusted_signups = inputs["avg_daily_signups"] * (1 + payload.signup_rate_delta / 100)
     adjusted_retention = inputs["retention_rate"] + payload.retention_rate_delta
     adjusted_conversion = inputs["conversion_rate"] + payload.conversion_rate_delta

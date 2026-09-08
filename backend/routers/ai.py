@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 from database import get_db
 from auth import get_current_user
-from routers.metrics import startup_data
+from routers.metrics import get_user_data
 
 load_dotenv()
 
@@ -19,20 +19,21 @@ client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 class ChatTurn(BaseModel):
-    role: str  # "user" or "assistant"
+    role: str
     content: str
 
 class ChatRequest(BaseModel):
     message: str
     history: Optional[List[ChatTurn]] = []
 
-def _build_context_summary(email: str) -> str:
+def _build_context_summary(db: Session, email: str) -> str:
     """Summarize the user's real metrics as plain text context for the model."""
-    if email not in startup_data:
+    records = get_user_data(db, email)
+    if records is None:
         return "The user has not uploaded any data yet. Answer generally, and suggest they upload a CSV from the Dashboard for personalized insights."
 
     import pandas as pd
-    df = pd.DataFrame(startup_data[email])
+    df = pd.DataFrame(records)
     df['date'] = pd.to_datetime(df['date'], dayfirst=True)
 
     total_visitors = df[df['event'] == 'visit']['user_id'].nunique()
@@ -76,7 +77,7 @@ def chat(
     if not client:
         raise HTTPException(status_code=500, detail="AI assistant is not configured. Missing GEMINI_API_KEY.")
 
-    context = _build_context_summary(current_user.email)
+    context = _build_context_summary(db, current_user.email)
 
     system_prompt = (
         "Your name is Troy. You are Thriven's AI growth assistant, helping a startup founder "
@@ -91,7 +92,6 @@ def chat(
     )
 
     try:
-        # Convert prior turns into the SDK's expected chat history format
         gemini_history = []
         for turn in request.history:
             role = "user" if turn.role == "user" else "model"
