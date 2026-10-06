@@ -9,8 +9,8 @@ export function StatusBadge({ value, trend = 'neutral' }: StatusBadgeProps) {
   const isPositive = trend === 'up' || (trend === 'neutral' && value > 0);
   const isNegative = trend === 'down' || (trend === 'neutral' && value < 0);
 
-  const bgColor = isPositive ? 'bg-accent/10' : isNegative ? 'bg-destructive/10' : 'bg-muted';
-  const textColor = isPositive ? 'text-accent' : isNegative ? 'text-destructive' : 'text-muted-foreground';
+  const bgColor = isPositive ? 'bg-primary/15' : isNegative ? 'bg-destructive/15' : 'bg-muted';
+  const textColor = isPositive ? 'text-primary' : isNegative ? 'text-destructive' : 'text-muted-foreground';
 
   const Icon = isPositive ? TrendingUp : isNegative ? TrendingDown : Minus;
 

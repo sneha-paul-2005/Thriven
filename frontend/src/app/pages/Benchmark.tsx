@@ -76,7 +76,7 @@ export function Benchmark() {
   };
 
   const renderTrendIcon = (yourVal: number, benchmarkVal: number) => {
-    if (yourVal > benchmarkVal) return <TrendingUp className="w-5 h-5 text-accent" />;
+    if (yourVal > benchmarkVal) return <TrendingUp className="w-5 h-5 text-primary" />;
     if (yourVal < benchmarkVal) return <TrendingDown className="w-5 h-5 text-destructive" />;
     return <Minus className="w-5 h-5 text-muted-foreground" />;
   };
@@ -85,7 +85,7 @@ export function Benchmark() {
     if (value === null || value === 0) return null;
     const isUp = value > 0;
     const Icon = isUp ? ArrowUp : ArrowDown;
-    const colorClass = isUp ? 'text-accent' : 'text-destructive';
+    const colorClass = isUp ? 'text-primary' : 'text-destructive';
     return (
       <div className={`flex items-center gap-1 text-xs ${colorClass}`}>
         <Icon className="w-3 h-3" />
@@ -108,7 +108,7 @@ export function Benchmark() {
       </div>
 
       {!hasBenchmark ? (
-        <div className="bg-card rounded-xl p-6 shadow-sm border border-border max-w-xl">
+        <div className="glass-panel rounded-xl p-6 max-w-xl">
           <div className="flex items-center gap-2 mb-2">
             <Award className="w-5 h-5 text-primary" />
             <h3 className="text-xl font-semibold">Set Your Baseline</h3>
@@ -180,7 +180,7 @@ export function Benchmark() {
               const benchmarkVal = current?.[key] ?? 0;
               const metricDrift = drift?.[key];
               return (
-                <div key={key} className="bg-card rounded-xl p-6 shadow-sm border border-border">
+                <div key={key} className="glass-panel rounded-xl p-6">
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="font-medium text-foreground">{METRIC_LABELS[key]}</h4>
                     {renderTrendIcon(yourVal, benchmarkVal)}
@@ -204,21 +204,21 @@ export function Benchmark() {
           </div>
 
           {/* Trend Chart */}
-          <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
+          <div className="glass-panel rounded-xl p-6">
             <h3 className="text-xl font-semibold mb-6">Benchmark Trend</h3>
             <p className="text-sm text-muted-foreground mb-4">
               How the industry benchmark has drifted recently (simulated market movement)
             </p>
             <ResponsiveContainer width="100%" height={280}>
               <LineChart data={history}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-                <XAxis dataKey="date" stroke="#717182" tick={{ fontSize: 11 }} />
-                <YAxis stroke="#717182" tick={{ fontSize: 11 }} />
-                <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e5e5', borderRadius: '8px' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="date" stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
+                <YAxis stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ backgroundColor: 'var(--popover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--popover-foreground)' }} />
                 <Legend />
-                <Line type="monotone" dataKey="conversion_rate" name="Conversion Rate" stroke="#7F77DD" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="retention_rate" name="Retention Rate" stroke="#1D9E75" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="dau_mau_ratio" name="DAU/MAU Ratio" stroke="#D85A30" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="conversion_rate" name="Conversion Rate" stroke="#818cf8" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="retention_rate" name="Retention Rate" stroke="#6fcf97" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="dau_mau_ratio" name="DAU/MAU Ratio" stroke="#f59e0b" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>

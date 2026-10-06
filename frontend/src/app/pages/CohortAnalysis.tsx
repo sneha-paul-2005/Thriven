@@ -7,7 +7,7 @@ type Granularity = 'weekly' | 'monthly';
 type CohortRow = {
   cohort_label: string;
   cohort_size: number;
-  retention: (number | null)[]; // null = no data for that period yet
+  retention: (number | null)[];
 };
 
 export function CohortAnalysis() {
@@ -38,7 +38,7 @@ export function CohortAnalysis() {
 
   const cellColor = (value: number | null) => {
     if (value === null) return 'bg-transparent';
-    if (value >= 60) return 'bg-accent/30 text-foreground';
+    if (value >= 60) return 'bg-primary/25 text-foreground';
     if (value >= 30) return 'bg-amber-500/20 text-foreground';
     if (value > 0) return 'bg-destructive/15 text-foreground';
     return 'bg-secondary/50 text-muted-foreground';
@@ -80,11 +80,11 @@ export function CohortAnalysis() {
       {loading ? (
         <div className="text-muted-foreground">Loading...</div>
       ) : !hasData ? (
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 text-sm text-amber-700">
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
           No data uploaded yet. Upload a CSV from the Dashboard to see cohort retention.
         </div>
       ) : (
-        <div className="bg-card rounded-xl p-6 shadow-sm border border-border overflow-x-auto">
+        <div className="glass-panel rounded-xl p-6 overflow-x-auto">
           <div className="flex items-center gap-2 mb-6">
             <Users className="w-5 h-5 text-primary" />
             <h3 className="text-xl font-semibold">

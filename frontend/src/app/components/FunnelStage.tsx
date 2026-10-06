@@ -12,17 +12,17 @@ export function FunnelStage({ label, count, percentage, dropoff = 0, color, isLa
 
   const badgeStyles = {
     high: 'bg-destructive/10 border-destructive text-destructive',
-    medium: 'bg-amber-500/10 border-amber-500 text-amber-600',
+    medium: 'bg-amber-500/10 border-amber-500 text-amber-500',
     low: 'bg-secondary border-border text-muted-foreground',
   };
 
   return (
-    <div className="relative">
-      <div className="flex items-center gap-4 mb-2">
-        <div className="flex-1">
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-medium text-foreground">{label}</h4>
-            <span className="text-sm text-muted-foreground">{percentage}%</span>
+    <div className="relative min-w-0">
+      <div className="flex items-center gap-4 mb-2 min-w-0">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between mb-2 gap-2">
+            <h4 className="font-medium text-foreground truncate">{label}</h4>
+            <span className="text-sm text-muted-foreground shrink-0">{percentage}%</span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
@@ -31,8 +31,8 @@ export function FunnelStage({ label, count, percentage, dropoff = 0, color, isLa
             />
           </div>
         </div>
-        <div className="text-right min-w-[80px]">
-          <p className="text-2xl font-semibold text-foreground">{count.toLocaleString()}</p>
+        <div className="text-right min-w-[64px] shrink-0">
+          <p className="text-xl sm:text-2xl font-semibold text-foreground">{count.toLocaleString()}</p>
         </div>
       </div>
       {!isLast && dropoff > 0 && (

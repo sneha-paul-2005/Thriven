@@ -72,7 +72,7 @@ export function AIAssistant() {
   return (
     <div className="h-[calc(100vh-8rem)] flex gap-6">
       {/* Context Summary */}
-      <div className="w-80 bg-card rounded-xl p-6 shadow-sm border border-border flex-shrink-0">
+      <div className="w-80 glass-panel rounded-xl p-6 flex-shrink-0">
         <h3 className="text-xl font-semibold mb-4">Startup Context</h3>
         <div className="space-y-4">
           <div>
@@ -101,7 +101,7 @@ export function AIAssistant() {
       </div>
 
       {/* Chat Interface */}
-      <div className="flex-1 bg-card rounded-xl shadow-sm border border-border flex flex-col">
+      <div className="flex-1 glass-panel rounded-xl flex flex-col">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6">
           {messages.map((msg, index) => (

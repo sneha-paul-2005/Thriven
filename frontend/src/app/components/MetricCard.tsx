@@ -11,7 +11,7 @@ interface MetricCardProps {
 
 export function MetricCard({ icon: Icon, label, value, change, trend = 'neutral' }: MetricCardProps) {
   return (
-    <div className="bg-card rounded-xl p-6 shadow-sm border border-border hover:shadow-md transition-shadow">
+    <div className="glass-panel rounded-xl p-6 hover:bg-secondary/20 transition-colors">
       <div className="flex items-start justify-between mb-4">
         <div className="p-2 rounded-lg bg-primary/10">
           <Icon className="w-5 h-5 text-primary" />

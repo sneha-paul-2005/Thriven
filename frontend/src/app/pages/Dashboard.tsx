@@ -100,20 +100,17 @@ export function Dashboard() {
   const conversion = hasData ? `${metrics.conversion_rate}%` : '3.8%';
   const northStar = hasData ? metrics.north_star : '15,840';
 
-  // Growth trend data — shorten date labels for readability
   const growthData = hasData && metrics.growth_trend?.length
     ? metrics.growth_trend.map(d => ({
-        date: d.date.slice(5), // show MM-DD instead of full date
+        date: d.date.slice(5),
         value: d.users
       }))
     : FALLBACK_GROWTH;
 
-  // Event breakdown data from growth_trend
   const eventData = hasData && metrics.event_breakdown?.length
     ? metrics.event_breakdown
     : FALLBACK_EVENTS;
 
-  // Anomaly alerts from backend, fallback to sample alerts
   const alerts: Alert[] = hasData && metrics.alerts?.length
     ? metrics.alerts
     : FALLBACK_ALERTS;
@@ -127,7 +124,7 @@ export function Dashboard() {
           <p className="text-muted-foreground mt-1">Overview of your growth metrics</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card hover:bg-secondary transition-colors">
+          <button className="inline-flex items-center gap-2 px-4 py-2 rounded-lg glass-panel hover:bg-secondary transition-colors">
             <Calendar className="w-4 h-4" />
             <span>Last 30 days</span>
           </button>
@@ -152,38 +149,38 @@ export function Dashboard() {
       {/* Charts Row */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Growth Trend Chart */}
-        <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
+        <div className="glass-panel rounded-xl p-6">
           <h3 className="text-xl font-semibold mb-6">Growth Trend</h3>
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={growthData}>
               <defs>
                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#7F77DD" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#7F77DD" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#6fcf97" stopOpacity={0.35}/>
+                  <stop offset="95%" stopColor="#6fcf97" stopOpacity={0}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-              <XAxis dataKey="date" stroke="#717182" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#717182" tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e5e5', borderRadius: '8px' }} />
-              <Area type="monotone" dataKey="value" name="Active Users" stroke="#7F77DD" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="date" stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
+              <YAxis stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
+              <Tooltip contentStyle={{ backgroundColor: 'var(--popover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--popover-foreground)' }} />
+              <Area type="monotone" dataKey="value" name="Active Users" stroke="#6fcf97" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Event Breakdown Chart */}
-        <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
+        <div className="glass-panel rounded-xl p-6">
           <h3 className="text-xl font-semibold mb-6">Event Breakdown</h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={eventData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e5e5" />
-              <XAxis dataKey="date" stroke="#717182" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#717182" tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e5e5e5', borderRadius: '8px' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="date" stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
+              <YAxis stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
+              <Tooltip contentStyle={{ backgroundColor: 'var(--popover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--popover-foreground)' }} />
               <Legend />
-              <Bar dataKey="visits" name="Visits" fill="#7F77DD" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="signups" name="Signups" fill="#1D9E75" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="purchases" name="Purchases" fill="#D85A30" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="visits" name="Visits" fill="#818cf8" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="signups" name="Signups" fill="#6fcf97" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="purchases" name="Purchases" fill="#f59e0b" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -191,14 +188,14 @@ export function Dashboard() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* North Star Metric */}
-        <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-xl p-6 border border-primary/20">
+        <div className="glass-panel bg-gradient-to-br from-primary/10 to-accent/10 rounded-xl p-6">
           <h3 className="text-xl font-semibold mb-4">North Star Metric</h3>
           <div className="space-y-4">
             <div>
               <p className="text-muted-foreground mb-2">Weekly Active Users</p>
               <p className="text-4xl font-bold text-foreground">{northStar}</p>
             </div>
-            <div className="flex items-center gap-2 text-accent">
+            <div className="flex items-center gap-2 text-accent-foreground">
               <TrendingUp className="w-5 h-5" />
               <span className="font-medium">+18.3% from last week</span>
             </div>
@@ -206,7 +203,7 @@ export function Dashboard() {
         </div>
 
         {/* Recent Alerts */}
-        <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
+        <div className="glass-panel rounded-xl p-6">
           <h3 className="text-xl font-semibold mb-4">Recent Alerts</h3>
           {alerts.length === 0 ? (
             <p className="text-sm text-muted-foreground">No anomalies detected — everything looks steady.</p>
@@ -233,7 +230,7 @@ export function Dashboard() {
       {/* Upload Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="bg-card rounded-2xl shadow-xl border border-border w-full max-w-md mx-4 p-6 space-y-4">
+          <div className="glass-panel rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">Upload CSV Data</h2>
               <button onClick={() => setShowModal(false)} className="text-muted-foreground hover:text-foreground transition-colors">
