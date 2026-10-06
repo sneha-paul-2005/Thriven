@@ -5,6 +5,7 @@ from database import engine
 import models
 from routers import auth, metrics, ai, benchmark, simulation, cohorts, digest
 from routers import public
+from routers import profile
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -34,6 +35,7 @@ app.include_router(simulation.router)
 app.include_router(cohorts.router)
 app.include_router(digest.router)
 app.include_router(public.router)
+app.include_router(profile.router)
 
 @app.get("/")
 def root():

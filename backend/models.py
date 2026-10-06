@@ -10,6 +10,10 @@ class Startup(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    first_name = Column(String, nullable=True)
+    last_name = Column(String, nullable=True)
+    company_name = Column(String, nullable=True)
+    industry = Column(String, nullable=True)
 
 
 class MetricsUpload(Base):
