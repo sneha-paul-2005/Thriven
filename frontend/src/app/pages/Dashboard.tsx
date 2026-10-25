@@ -1,38 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Users, UserPlus, ShoppingCart, TrendingUp, TrendingDown, AlertTriangle, Calendar, Upload, X, CheckCircle } from 'lucide-react';
+import { Users, UserPlus, ShoppingCart, TrendingUp, AlertTriangle, Calendar, Upload, X, CheckCircle } from 'lucide-react';
 import { MetricCard } from '../components/MetricCard';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { api, getToken } from '../services/api';
-
-const FALLBACK_GROWTH = [
-  { date: 'Jan 1', value: 1200 },
-  { date: 'Jan 8', value: 1800 },
-  { date: 'Jan 15', value: 2400 },
-  { date: 'Jan 22', value: 2200 },
-  { date: 'Jan 29', value: 2800 },
-  { date: 'Feb 5', value: 3200 },
-  { date: 'Feb 12', value: 3600 },
-];
-
-const FALLBACK_EVENTS = [
-  { date: 'Jan 1', visits: 1200, signups: 300, purchases: 90 },
-  { date: 'Jan 8', visits: 1800, signups: 450, purchases: 120 },
-  { date: 'Jan 15', visits: 2400, signups: 600, purchases: 180 },
-  { date: 'Jan 22', visits: 2200, signups: 500, purchases: 150 },
-  { date: 'Jan 29', visits: 2800, signups: 700, purchases: 200 },
-];
 
 type Alert = {
   severity: 'high' | 'medium' | 'positive';
   title: string;
   message: string;
 };
-
-const FALLBACK_ALERTS: Alert[] = [
-  { severity: 'high', title: 'High cart abandonment', message: 'Checkout drop-off rate increased to 45%' },
-  { severity: 'medium', title: 'Retention dip detected', message: 'Week 2 retention down 5% this cohort' },
-  { severity: 'positive', title: 'Traffic surge', message: 'Organic search up 34% this week' },
-];
 
 const alertStyles = {
   high: { box: 'bg-destructive/10 border-destructive/20', icon: 'text-destructive' },
@@ -41,7 +17,9 @@ const alertStyles = {
 };
 
 export function Dashboard() {
-  const [metrics, setMetrics] = useState(null);
+  const [metrics, setMetrics] = useState<any>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -51,14 +29,28 @@ export function Dashboard() {
 
   const fetchMetrics = async () => {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+      setLoaded(true);
+      return;
+    }
     try {
       const data = await api.getDashboard(token);
-      if (!data.detail) setMetrics(data);
-    } catch (_) {}
+      setMetrics(data?.has_data ? data : null);
+      setLoadError(false);
+    } catch (_) {
+      // 401s are handled in the api helper (redirect to login)
+      setLoadError(true);
+    }
+    setLoaded(true);
   };
 
   useEffect(() => { fetchMetrics(); }, []);
+
+  const openModal = () => {
+    setShowModal(true);
+    setUploadStatus('idle');
+    setUploadMessage('');
+  };
 
   const handleFile = async (file: File) => {
     if (!file.name.endsWith('.csv')) {
@@ -93,30 +85,16 @@ export function Dashboard() {
     if (file) handleFile(file);
   };
 
-  const hasData = metrics?.has_data;
-  const dau = hasData ? metrics.dau : '3,247';
-  const mau = hasData ? metrics.mau : '28,450';
-  const retention = hasData ? `${metrics.retention_rate}%` : '64%';
-  const conversion = hasData ? `${metrics.conversion_rate}%` : '3.8%';
-  const northStar = hasData ? metrics.north_star : '15,840';
+  const hasData = !!metrics;
 
-  const growthData = hasData && metrics.growth_trend?.length
-    ? metrics.growth_trend.map(d => ({
-        date: d.date.slice(5),
-        value: d.users
-      }))
-    : FALLBACK_GROWTH;
-
-  const eventData = hasData && metrics.event_breakdown?.length
-    ? metrics.event_breakdown
-    : FALLBACK_EVENTS;
-
-  const alerts: Alert[] = hasData && metrics.alerts?.length
-    ? metrics.alerts
-    : FALLBACK_ALERTS;
+  const growthData = hasData
+    ? (metrics.growth_trend || []).map((d: any) => ({ date: d.date.slice(5), value: d.users }))
+    : [];
+  const eventData = hasData ? metrics.event_breakdown || [] : [];
+  const alerts: Alert[] = hasData ? metrics.alerts || [] : [];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -129,7 +107,7 @@ export function Dashboard() {
             <span>Last 30 days</span>
           </button>
           <button
-            onClick={() => { setShowModal(true); setUploadStatus('idle'); setUploadMessage(''); }}
+            onClick={openModal}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
           >
             <Upload className="w-4 h-4" />
@@ -138,94 +116,140 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard icon={Users} label="Daily Active Users" value={String(dau)} change={12.5} trend="up" />
-        <MetricCard icon={UserPlus} label="Monthly Active Users" value={String(mau)} change={8.2} trend="up" />
-        <MetricCard icon={TrendingUp} label="Retention Rate" value={String(retention)} change={-2.4} trend="down" />
-        <MetricCard icon={ShoppingCart} label="Conversion Rate" value={String(conversion)} change={5.1} trend="up" />
-      </div>
+      {!loaded && <p className="text-muted-foreground">Loading your metrics...</p>}
 
-      {/* Charts Row */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Growth Trend Chart */}
-        <div className="glass-panel rounded-xl p-6">
-          <h3 className="text-xl font-semibold mb-6">Growth Trend</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={growthData}>
-              <defs>
-                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6fcf97" stopOpacity={0.35}/>
-                  <stop offset="95%" stopColor="#6fcf97" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="date" stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
-              <YAxis stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ backgroundColor: 'var(--popover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--popover-foreground)' }} />
-              <Area type="monotone" dataKey="value" name="Active Users" stroke="#6fcf97" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Event Breakdown Chart */}
-        <div className="glass-panel rounded-xl p-6">
-          <h3 className="text-xl font-semibold mb-6">Event Breakdown</h3>
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={eventData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="date" stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
-              <YAxis stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ backgroundColor: 'var(--popover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--popover-foreground)' }} />
-              <Legend />
-              <Bar dataKey="visits" name="Visits" fill="#818cf8" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="signups" name="Signups" fill="#6fcf97" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="purchases" name="Purchases" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* North Star Metric */}
-        <div className="glass-panel bg-gradient-to-br from-primary/10 to-accent/10 rounded-xl p-6">
-          <h3 className="text-xl font-semibold mb-4">North Star Metric</h3>
-          <div className="space-y-4">
-            <div>
-              <p className="text-muted-foreground mb-2">Weekly Active Users</p>
-              <p className="text-4xl font-bold text-foreground">{northStar}</p>
-            </div>
-            <div className="flex items-center gap-2 text-accent-foreground">
-              <TrendingUp className="w-5 h-5" />
-              <span className="font-medium">+18.3% from last week</span>
-            </div>
+      {loaded && loadError && (
+        <div className="glass-panel rounded-xl p-6 flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium text-foreground">Couldn't load your metrics</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              The server didn't respond. Check that the backend is running, then refresh the page.
+            </p>
           </div>
         </div>
+      )}
 
-        {/* Recent Alerts */}
-        <div className="glass-panel rounded-xl p-6">
-          <h3 className="text-xl font-semibold mb-4">Recent Alerts</h3>
-          {alerts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No anomalies detected — everything looks steady.</p>
-          ) : (
-            <div className="space-y-3">
-              {alerts.map((alert, i) => {
-                const style = alertStyles[alert.severity];
-                const Icon = alert.severity === 'positive' ? TrendingUp : AlertTriangle;
-                return (
-                  <div key={i} className={`flex items-start gap-3 p-3 border rounded-lg ${style.box}`}>
-                    <Icon className={`w-5 h-5 mt-0.5 ${style.icon}`} />
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">{alert.title}</p>
-                      <p className="text-sm text-muted-foreground">{alert.message}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {/* Empty state: new account, nothing uploaded yet */}
+      {loaded && !loadError && !hasData && (
+        <div className="glass-panel rounded-xl p-10 text-center max-w-2xl mx-auto">
+          <div className="w-14 h-14 mx-auto mb-5 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <Upload className="w-7 h-7 text-primary" />
+          </div>
+          <h2 className="text-2xl font-semibold text-foreground">Welcome to Thriven</h2>
+          <p className="text-muted-foreground mt-2">
+            Upload your user activity as a CSV and your growth metrics, funnel and cohorts will appear here.
+          </p>
+          <div className="text-sm text-muted-foreground mt-5 space-y-1">
+            <p>
+              Required columns: <code className="bg-secondary px-1 rounded">user_id, date, event</code>
+            </p>
+            <p>
+              Events used: <code className="bg-secondary px-1 rounded">visit, signup, add_to_cart, purchase</code>
+            </p>
+            <p>
+              Optional for funnel breakdowns:{' '}
+              <code className="bg-secondary px-1 rounded">device, location, traffic_source</code>
+            </p>
+          </div>
+          <button
+            onClick={openModal}
+            className="mt-7 inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-medium"
+          >
+            <Upload className="w-4 h-4" />
+            Upload your CSV
+          </button>
         </div>
-      </div>
+      )}
+
+      {/* Real data */}
+      {loaded && !loadError && hasData && (
+        <>
+          {/* Metric Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <MetricCard icon={Users} label="Daily Active Users" value={String(metrics.dau)} change={12.5} trend="up" />
+            <MetricCard icon={UserPlus} label="Monthly Active Users" value={String(metrics.mau)} change={8.2} trend="up" />
+            <MetricCard icon={TrendingUp} label="Retention Rate" value={`${metrics.retention_rate}%`} change={-2.4} trend="down" />
+            <MetricCard icon={ShoppingCart} label="Conversion Rate" value={`${metrics.conversion_rate}%`} change={5.1} trend="up" />
+          </div>
+
+          {/* Charts Row */}
+          <div className="grid lg:grid-cols-2 gap-6">
+            <div className="glass-panel rounded-xl p-6 min-w-0">
+              <h3 className="text-xl font-semibold mb-6">Growth Trend</h3>
+              <ResponsiveContainer width="100%" height={260}>
+                <AreaChart data={growthData}>
+                  <defs>
+                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6fcf97" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#6fcf97" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="date" stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--popover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--popover-foreground)' }} />
+                  <Area type="monotone" dataKey="value" name="Active Users" stroke="#6fcf97" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="glass-panel rounded-xl p-6 min-w-0">
+              <h3 className="text-xl font-semibold mb-6">Event Breakdown</h3>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={eventData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="date" stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="var(--muted-foreground)" tick={{ fontSize: 11 }} />
+                  <Tooltip contentStyle={{ backgroundColor: 'var(--popover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--popover-foreground)' }} />
+                  <Legend />
+                  <Bar dataKey="visits" name="Visits" fill="#818cf8" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="signups" name="Signups" fill="#6fcf97" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="purchases" name="Purchases" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="grid lg:grid-cols-2 gap-6">
+            {/* North Star Metric */}
+            <div className="glass-panel bg-gradient-to-br from-primary/10 to-accent/10 rounded-xl p-6">
+              <h3 className="text-xl font-semibold mb-4">North Star Metric</h3>
+              <div>
+                <p className="text-muted-foreground mb-2">Weekly Active Users</p>
+                <p className="text-4xl font-bold text-foreground">{metrics.north_star}</p>
+                <p className="text-sm text-muted-foreground mt-3">
+                  Unique users in the last 7 days of your data
+                </p>
+              </div>
+            </div>
+
+            {/* Recent Alerts */}
+            <div className="glass-panel rounded-xl p-6">
+              <h3 className="text-xl font-semibold mb-4">Recent Alerts</h3>
+              {alerts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No anomalies detected — everything looks steady.</p>
+              ) : (
+                <div className="space-y-3">
+                  {alerts.map((alert, i) => {
+                    const style = alertStyles[alert.severity];
+                    const Icon = alert.severity === 'positive' ? TrendingUp : AlertTriangle;
+                    return (
+                      <div key={i} className={`flex items-start gap-3 p-3 border rounded-lg ${style.box}`}>
+                        <Icon className={`w-5 h-5 mt-0.5 shrink-0 ${style.icon}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground">{alert.title}</p>
+                          <p className="text-sm text-muted-foreground">{alert.message}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Upload Modal */}
       {showModal && (
@@ -241,6 +265,11 @@ export function Dashboard() {
             <p className="text-sm text-muted-foreground">
               Upload a CSV with columns: <code className="bg-secondary px-1 rounded">user_id, date, event</code>
             </p>
+            {hasData && (
+              <p className="text-xs text-muted-foreground">
+                Uploading a new file replaces your current data.
+              </p>
+            )}
 
             <div
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -270,7 +299,7 @@ export function Dashboard() {
               </div>
             )}
             {uploadStatus === 'success' && (
-              <div className="flex items-center gap-2 text-sm text-green-600">
+              <div className="flex items-center gap-2 text-sm text-primary">
                 <CheckCircle className="w-4 h-4" />
                 {uploadMessage}
               </div>
