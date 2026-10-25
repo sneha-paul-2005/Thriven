@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -7,7 +8,13 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 
-SECRET_KEY = "thriven-secret-key-change-in-production"
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    if os.getenv("RENDER"):
+        # Render sets RENDER automatically; refuse to run with a public key
+        raise RuntimeError("SECRET_KEY must be set in production")
+    SECRET_KEY = "thriven-secret-key-change-in-production"  # local development only
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
