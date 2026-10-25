@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, Navigate } from 'react-router';
 import { Eye, EyeOff } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { Button } from '../components/Button';
 import { LogoIcon } from '../components/LogoIcon';
-import { api, saveToken } from '../services/api';
+import { api, saveToken, isLoggedIn } from '../services/api';
+
+// Same base URL the rest of the app uses (set VITE_API_URL on Vercel for production)
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export function Login() {
   const navigate = useNavigate();
@@ -40,7 +43,7 @@ export function Login() {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
         });
         const userInfo = await res.json();
-        const data = await fetch('http://localhost:8000/auth/google', {
+        const data = await fetch(`${API_URL}/auth/google`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: tokenResponse.access_token, email: userInfo.email, name: userInfo.name })
@@ -59,34 +62,40 @@ export function Login() {
     onError: () => setError('Google login failed. Please try again.')
   });
 
+  // Already logged in? Skip the login screen.
+  if (isLoggedIn()) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <div className="bg-card rounded-xl shadow-lg border border-border p-8">
+      <div className="w-full max-w-md min-w-0">
+        <div className="glass-panel rounded-2xl shadow-lg p-8">
           <div className="flex justify-center mb-8">
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
                 <LogoIcon className="w-6 h-6 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-semibold">THRIVEN</span>
+              <span className="text-2xl font-semibold text-foreground">THRIVEN</span>
             </div>
           </div>
 
-          <h2 className="text-2xl font-semibold text-center mb-2">Welcome back</h2>
+          <h2 className="text-2xl font-semibold text-center text-foreground mb-2">Welcome back</h2>
           <p className="text-center text-muted-foreground mb-8">
             Log in to your account to continue
           </p>
 
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
+            <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
               {error}
             </div>
           )}
 
           {/* Google Login Button */}
           <button
+            type="button"
             onClick={() => handleGoogleLogin()}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-border rounded-lg hover:bg-secondary transition-colors mb-4"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-border rounded-lg bg-secondary/40 hover:bg-secondary transition-colors mb-4 text-foreground"
           >
             <svg width="18" height="18" viewBox="0 0 18 18">
               <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/>
@@ -111,8 +120,9 @@ export function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 rounded-lg"
                 placeholder="you@company.com"
+                autoComplete="email"
                 required
               />
             </div>
@@ -125,14 +135,16 @@ export function Login() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 pr-12 rounded-lg bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="••••••••"
+                  className="w-full px-4 py-3 pr-12 rounded-lg"
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>

@@ -167,10 +167,10 @@ export function Dashboard() {
         <>
           {/* Metric Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <MetricCard icon={Users} label="Daily Active Users" value={String(metrics.dau)} change={12.5} trend="up" />
-            <MetricCard icon={UserPlus} label="Monthly Active Users" value={String(metrics.mau)} change={8.2} trend="up" />
-            <MetricCard icon={TrendingUp} label="Retention Rate" value={`${metrics.retention_rate}%`} change={-2.4} trend="down" />
-            <MetricCard icon={ShoppingCart} label="Conversion Rate" value={`${metrics.conversion_rate}%`} change={5.1} trend="up" />
+            <MetricCard icon={Users} label="Daily Active Users" value={String(metrics.dau)} />
+            <MetricCard icon={UserPlus} label="Monthly Active Users" value={String(metrics.mau)} />
+            <MetricCard icon={TrendingUp} label="Retention Rate" value={`${metrics.retention_rate}%`} />
+            <MetricCard icon={ShoppingCart} label="Conversion Rate" value={`${metrics.conversion_rate}%`} />
           </div>
 
           {/* Charts Row */}

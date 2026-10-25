@@ -28,10 +28,15 @@ export function VCDashboard() {
   const [addError, setAddError] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const tokens: string[] = JSON.parse(saved);
-      tokens.forEach((token) => loadStartup(token));
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const tokens: string[] = JSON.parse(saved);
+        tokens.forEach((token) => loadStartup(token));
+      }
+    } catch (_) {
+      // Corrupted saved list: start fresh
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
 
@@ -40,7 +45,12 @@ export function VCDashboard() {
   };
 
   const loadStartup = async (token: string) => {
-    setStartups((prev) => [...prev, { token, data: null, error: false, loading: true }]);
+    // Skip if already in the list (stops duplicate cards on dev double-mount)
+    setStartups((prev) =>
+      prev.some((s) => s.token === token)
+        ? prev
+        : [...prev, { token, data: null, error: false, loading: true }]
+    );
     try {
       const result = await api.getPublicPage(token);
       if (result.detail) {
@@ -89,7 +99,7 @@ export function VCDashboard() {
   }, [startups]);
 
   return (
-    <div className="max-w-5xl space-y-6">
+    <div className="max-w-5xl space-y-6 min-w-0">
       <div>
         <h1 className="text-3xl font-semibold text-foreground">VC View</h1>
         <p className="text-muted-foreground mt-1">
@@ -98,7 +108,7 @@ export function VCDashboard() {
       </div>
 
       {/* Add startup */}
-      <div className="bg-card rounded-xl p-6 shadow-sm border border-border">
+      <div className="glass-panel rounded-xl p-6 overflow-hidden">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-primary/10 rounded-lg">
             <Briefcase className="w-5 h-5 text-primary" />
@@ -112,12 +122,12 @@ export function VCDashboard() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-            placeholder="Paste their public growth link (e.g. http://localhost:5173/grow/xk29d81a)"
-            className="flex-1 px-4 py-3 rounded-lg bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder={`Paste their public growth link (e.g. ${window.location.origin}/grow/xk29d81a)`}
+            className="flex-1 min-w-0 px-4 py-3 rounded-lg"
           />
           <button
             onClick={handleAdd}
-            className="px-4 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
+            className="px-4 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors flex items-center gap-2 shrink-0"
           >
             <Plus className="w-4 h-4" />
             Add
@@ -131,33 +141,33 @@ export function VCDashboard() {
 
       {/* Startup cards */}
       {startups.length === 0 ? (
-        <div className="bg-card rounded-xl p-12 shadow-sm border border-border text-center">
+        <div className="glass-panel rounded-xl p-12 text-center">
           <p className="text-muted-foreground">No startups tracked yet. Add one above to get started.</p>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
           {startups.map((s) => (
-            <div key={s.token} className="bg-card rounded-xl p-6 shadow-sm border border-border">
+            <div key={s.token} className="glass-panel rounded-xl p-6 min-w-0 overflow-hidden">
               {s.loading ? (
                 <p className="text-muted-foreground">Loading...</p>
               ) : s.error ? (
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
+                  <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
                     <p className="font-medium text-foreground">Unavailable</p>
                     <p className="text-sm text-muted-foreground">
                       This link is invalid or the founder disabled it.
                     </p>
                   </div>
-                  <button onClick={() => handleRemove(s.token)}>
+                  <button onClick={() => handleRemove(s.token)} aria-label="Remove startup">
                     <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive transition-colors" />
                   </button>
                 </div>
               ) : (
                 <>
-                  <div className="flex items-start justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-foreground">{s.data?.startup_name}</h3>
-                    <button onClick={() => handleRemove(s.token)}>
+                  <div className="flex items-start justify-between gap-3 mb-4">
+                    <h3 className="text-lg font-semibold text-foreground truncate">{s.data?.startup_name}</h3>
+                    <button onClick={() => handleRemove(s.token)} aria-label="Remove startup" className="shrink-0">
                       <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive transition-colors" />
                     </button>
                   </div>

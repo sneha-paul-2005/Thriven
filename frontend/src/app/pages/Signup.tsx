@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, Navigate } from 'react-router';
 import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '../components/Button';
 import { LogoIcon } from '../components/LogoIcon';
-import { api, saveToken } from '../services/api';
+import { api, saveToken, isLoggedIn } from '../services/api';
 
 function getPasswordStrength(password: string) {
-  let score = 0;
   const checks = {
     length: password.length >= 8,
     uppercase: /[A-Z]/.test(password),
@@ -14,7 +13,7 @@ function getPasswordStrength(password: string) {
     number: /[0-9]/.test(password),
     special: /[^A-Za-z0-9]/.test(password),
   };
-  score = Object.values(checks).filter(Boolean).length;
+  const score = Object.values(checks).filter(Boolean).length;
   return { score, checks };
 }
 
@@ -27,10 +26,19 @@ function PasswordStrengthBar({ password }: { password: string }) {
     <div className="mt-2 space-y-2">
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${i <= score ? strengthColor[score] : 'bg-gray-200'}`} />
+          <div
+            key={i}
+            className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+              i <= score ? strengthColor[score] : 'bg-secondary'
+            }`}
+          />
         ))}
       </div>
-      <p className={`text-xs font-medium ${score <= 2 ? 'text-red-500' : score === 3 ? 'text-yellow-500' : score === 4 ? 'text-blue-500' : 'text-green-500'}`}>
+      <p
+        className={`text-xs font-medium ${
+          score <= 2 ? 'text-red-500' : score === 3 ? 'text-yellow-500' : score === 4 ? 'text-blue-500' : 'text-green-500'
+        }`}
+      >
         {strengthLabel[score]}
       </p>
       <div className="grid grid-cols-2 gap-1">
@@ -42,7 +50,11 @@ function PasswordStrengthBar({ password }: { password: string }) {
           { key: 'special', label: 'Special character' },
         ].map(({ key, label }) => (
           <div key={key} className="flex items-center gap-1">
-            <span className={`text-xs ${checks[key as keyof typeof checks] ? 'text-green-500' : 'text-gray-400'}`}>
+            <span
+              className={`text-xs ${
+                checks[key as keyof typeof checks] ? 'text-green-500' : 'text-muted-foreground'
+              }`}
+            >
               {checks[key as keyof typeof checks] ? '✓' : '○'} {label}
             </span>
           </div>
@@ -93,26 +105,31 @@ export function Signup() {
     }
   };
 
+  // Already logged in? Skip the signup screen.
+  if (isLoggedIn()) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <div className="bg-card rounded-xl shadow-lg border border-border p-8">
+      <div className="w-full max-w-md min-w-0">
+        <div className="glass-panel rounded-2xl shadow-lg p-8">
           <div className="flex justify-center mb-8">
             <div className="flex items-center gap-2">
               <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
                 <LogoIcon className="w-6 h-6 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-semibold">THRIVEN</span>
+              <span className="text-2xl font-semibold text-foreground">THRIVEN</span>
             </div>
           </div>
 
-          <h2 className="text-2xl font-semibold text-center mb-2">Get started</h2>
+          <h2 className="text-2xl font-semibold text-center text-foreground mb-2">Get started</h2>
           <p className="text-center text-muted-foreground mb-8">
             Create your account to start growing
           </p>
 
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-sm">
+            <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
               {error}
             </div>
           )}
@@ -125,8 +142,8 @@ export function Signup() {
                 type="text"
                 value={startupName}
                 onChange={(e) => setStartupName(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Acme Inc"
+                className="w-full px-4 py-3 rounded-lg"
+                placeholder="Your startup name"
                 required
               />
             </div>
@@ -138,8 +155,9 @@ export function Signup() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-4 py-3 rounded-lg"
                 placeholder="you@company.com"
+                autoComplete="email"
                 required
               />
             </div>
@@ -152,14 +170,16 @@ export function Signup() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 pr-12 rounded-lg bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="••••••••"
+                  className="w-full px-4 py-3 pr-12 rounded-lg"
+                  placeholder="Create a password"
+                  autoComplete="new-password"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -175,14 +195,16 @@ export function Signup() {
                   type={showConfirmPassword ? 'text' : 'password'}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-3 pr-12 rounded-lg bg-input-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="••••••••"
+                  className="w-full px-4 py-3 pr-12 rounded-lg"
+                  placeholder="Re-enter your password"
+                  autoComplete="new-password"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                 >
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
