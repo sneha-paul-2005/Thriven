@@ -14,7 +14,16 @@ from routers.metrics import get_user_data
 load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+
+# 30-second timeout (milliseconds) so a stalled call fails fast instead of hanging
+client = (
+    genai.Client(
+        api_key=GEMINI_API_KEY,
+        http_options=types.HttpOptions(timeout=30000),
+    )
+    if GEMINI_API_KEY
+    else None
+)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -110,4 +119,9 @@ def chat(
         return {"reply": response.text}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"AI request failed: {str(e)}")
+        # Full details go to the Render logs; the user sees a short message
+        print(f"[ai/chat] Gemini call failed: {e!r}", flush=True)
+        raise HTTPException(
+            status_code=502,
+            detail="Troy couldn't reach the AI service. Please try again in a moment.",
+        )
