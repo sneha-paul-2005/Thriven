@@ -11,9 +11,14 @@ models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Thriven API")
 
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "https://thriven-chi.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -21,10 +26,14 @@ app.add_middleware(
 
 @app.exception_handler(401)
 async def unauthorized_handler(request: Request, exc):
+    origin = request.headers.get("origin")
+    headers = {}
+    if origin in ALLOWED_ORIGINS:
+        headers["Access-Control-Allow-Origin"] = origin
     return JSONResponse(
         status_code=401,
         content={"detail": "Could not validate credentials"},
-        headers={"Access-Control-Allow-Origin": "http://localhost:5173"},
+        headers=headers,
     )
 
 app.include_router(auth.router)
